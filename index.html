@@ -331,6 +331,7 @@ let state = {
 let currentTab = 'dashboard';
 let storageOk = true;
 let expandedJob = null;
+let confirmDeleteJobId = null;
 
 const STORAGE_KEY = 'gcaporn-tracker-v1';
 
@@ -862,6 +863,16 @@ function renderJobs(){
           <h3>Invoices sent (${money(inv)} · ${money(rec)} received)</h3>
           ${state.invoices.filter(i=>i.jobId===j.id).length===0 ? `<div class="mini-row" style="color:var(--steel)">No invoices sent</div>` :
             state.invoices.filter(i=>i.jobId===j.id).map(i=>`<div class="mini-row"><span>${i.no} — ${fmtDate(i.date)}</span><span class="amt">${money(i.amount)}</span></div>`).join('')}
+
+          ${confirmDeleteJobId===j.id ? `
+            <div style="background:#F7E5E3; border:1px solid var(--rust); border-radius:3px; padding:11px 13px; margin-top:16px;">
+              <div style="font-size:12.5px; font-weight:700; color:var(--rust); margin-bottom:10px;">Delete ${j.no} and all its expenses, time entries and invoices? This can't be undone.</div>
+              <button class="submit-btn" style="margin-top:0; background:var(--rust); color:#fff;" data-action="delete-job-execute" data-id="${j.id}">Yes, delete everything</button>
+              <button class="submit-btn" style="margin-top:8px; background:var(--steel);" data-action="delete-job-cancel">Cancel</button>
+            </div>
+          ` : `
+            <button class="del" style="margin-top:16px; font-size:12px;" data-action="delete-job-prompt" data-id="${j.id}">Delete this job</button>
+          `}
         </div>
         ` : ''}
       </div>
@@ -1147,7 +1158,24 @@ async function onAction(e){
 
   else if(action==='select-invoice-job'){ invoiceFormJobId = parseInt(e.currentTarget.value); render(); }
 
-  else if(action==='toggle-job'){ expandedJob = expandedJob===id ? null : id; render(); }
+  else if(action==='toggle-job'){ expandedJob = expandedJob===id ? null : id; confirmDeleteJobId=null; render(); }
+
+  else if(action==='delete-job-prompt'){ confirmDeleteJobId = id; render(); }
+
+  else if(action==='delete-job-cancel'){ confirmDeleteJobId = null; render(); }
+
+  else if(action==='delete-job-execute'){
+    const job = jobById(id);
+    state.jobs = state.jobs.filter(j=>j.id!==id);
+    state.expenses = state.expenses.filter(e=>e.jobId!==id);
+    state.time = state.time.filter(t=>t.jobId!==id);
+    state.invoices = state.invoices.filter(inv=>inv.jobId!==id);
+    confirmDeleteJobId = null;
+    expandedJob = null;
+    await saveState();
+    render();
+    showToast(`${job ? job.no : 'Job'} and all its records deleted`);
+  }
 
   else if(action==='change-status'){
     const job = jobById(id);
