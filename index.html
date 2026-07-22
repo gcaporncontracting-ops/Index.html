@@ -497,7 +497,7 @@ function exportToExcel(){
     const j = jobById(e.jobId);
     return {
       'Date': e.date,
-      'Job No.': j ? j.no : '',
+      'Job No.': j ? j.no : 'Consumables',
       'Category': e.category,
       'Description': e.desc,
       'Supplier': e.supplier || '',
@@ -866,7 +866,7 @@ function renderJobs(){
 
           ${confirmDeleteJobId===j.id ? `
             <div style="background:#F7E5E3; border:1px solid var(--rust); border-radius:3px; padding:11px 13px; margin-top:16px;">
-              <div style="font-size:12.5px; font-weight:700; color:var(--rust); margin-bottom:10px;">Delete ${j.no} and all its expenses, time entries and invoices? This can't be undone.</div>
+              <div style="font-size:12.5px; font-weight:700; color:var(--rust); margin-bottom:10px;">Delete ${j.no}? Its time entries and invoices will be deleted, but expenses/materials will be kept under Consumables. This can't be undone.</div>
               <button class="submit-btn" style="margin-top:0; background:var(--rust); color:#fff;" data-action="delete-job-execute" data-id="${j.id}">Yes, delete everything</button>
               <button class="submit-btn" style="margin-top:8px; background:var(--steel);" data-action="delete-job-cancel">Cancel</button>
             </div>
@@ -892,6 +892,7 @@ function renderExpenses(){
       <h2>Add expense</h2>
       <label>Job</label>
       <select id="exp-job">
+        <option value="consumables" ${expenseFormJobId===null?'selected':''}>Consumables (not job-specific)</option>
         ${state.jobs.map(j=>`<option value="${j.id}" ${expenseFormJobId===j.id?'selected':''}>${j.no} — ${j.client}</option>`).join('')}
       </select>
       <div class="row2">
@@ -913,11 +914,12 @@ function renderExpenses(){
     ${sorted.length===0 ? `<div class="empty-state"><div class="display">No expenses yet</div>Add your first purchase above.</div>` :
       sorted.map(e=>{
         const j = jobById(e.jobId);
+        const jobLabel = j ? j.no : (e.jobId===null ? 'Consumables' : (e.orphanedFrom ? `Consumables (was ${e.orphanedFrom})` : 'Consumables'));
         return `
         <div class="list-row">
           <div class="left">
             <div class="title">${e.desc}</div>
-            <div class="meta">${j?j.no:'—'} · ${e.category} · ${fmtDate(e.date)}${e.supplier?' · '+e.supplier:''}</div>
+            <div class="meta">${jobLabel} · ${e.category} · ${fmtDate(e.date)}${e.supplier?' · '+e.supplier:''}</div>
           </div>
           <div class="right">
             <div class="amt">${money(e.cost)}</div>
@@ -1166,15 +1168,17 @@ async function onAction(e){
 
   else if(action==='delete-job-execute'){
     const job = jobById(id);
+    const orphanedExpenseCount = state.expenses.filter(e=>e.jobId===id).length;
     state.jobs = state.jobs.filter(j=>j.id!==id);
-    state.expenses = state.expenses.filter(e=>e.jobId!==id);
+    // Materials/expenses are kept — just unlinked so they show as Consumables, not deleted
+    state.expenses.forEach(e=>{ if(e.jobId===id){ e.jobId = null; e.orphanedFrom = job ? job.no : null; } });
     state.time = state.time.filter(t=>t.jobId!==id);
     state.invoices = state.invoices.filter(inv=>inv.jobId!==id);
     confirmDeleteJobId = null;
     expandedJob = null;
     await saveState();
     render();
-    showToast(`${job ? job.no : 'Job'} and all its records deleted`);
+    showToast(`${job ? job.no : 'Job'} deleted — ${orphanedExpenseCount} expense${orphanedExpenseCount===1?'':'s'} kept under Consumables`);
   }
 
   else if(action==='change-status'){
@@ -1221,7 +1225,8 @@ async function onAction(e){
   }
 
   else if(action==='submit-expense'){
-    const jobId = parseInt(document.getElementById('exp-job').value);
+    const rawJobVal = document.getElementById('exp-job').value;
+    const jobId = rawJobVal==='consumables' ? null : parseInt(rawJobVal);
     const date = document.getElementById('exp-date').value;
     const category = document.getElementById('exp-category').value;
     const desc = document.getElementById('exp-desc').value.trim();
