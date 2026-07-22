@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>G. Caporn Contracting — Job Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2833;
+    --ink-2:#243342;
+    --paper:#F5F1E6;
+    --paper-2:#EDE6D3;
+    --line:#C9BE9F;
+    --yellow:#F2B705;
+    --green:#2F6F5E;
+    --rust:#B33A3A;
+    --steel:#5C6B73;
+    --text-on-ink:#F5F1E6;
+    --text-dim:#93A1AB;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  #app{
+    width:100%;
+    max-width:520px;
+    min-height:100vh;
+    background:var(--ink);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  .display{font-family:'Archivo Black',sans-serif; letter-spacing:0.01em;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* Header */
+  header.topbar{
+    padding:18px 18px 14px;
+    background:var(--ink);
+    border-bottom:1px solid #34434F;
+    position:sticky; top:0; z-index:20;
+  }
+  header.topbar .brand{
+    color:var(--text-on-ink);
+    font-size:19px;
+    text-transform:uppercase;
+    line-height:1.15;
+  }
+  header.topbar .brand span{color:var(--yellow);}
+  header.topbar .sub{
+    color:var(--text-dim);
+    font-size:11px;
+    margin-top:3px;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+  }
+
+  main{
+    flex:1;
+    background:var(--paper);
+    padding:16px 14px 100px;
+    overflow-y:auto;
+  }
+
+  /* Bottom nav */
+  nav.tabbar{
+    position:fixed;
+    bottom:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:100%;
+    max-width:520px;
+    background:var(--ink);
+    border-top:1px solid #34434F;
+    display:flex;
+    z-index:30;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabbar button{
+    flex:1;
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-family:'Inter',sans-serif;
+    font-size:10.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    padding:10px 2px 9px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    cursor:pointer;
+  }
+  nav.tabbar button svg{width:20px;height:20px;stroke:var(--text-dim); fill:none;}
+  nav.tabbar button.active{color:var(--yellow);}
+  nav.tabbar button.active svg{stroke:var(--yellow);}
+
+  /* Section heading */
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin:2px 2px 12px;
+  }
+  .section-head h1{
+    font-size:20px; margin:0; text-transform:uppercase;
+  }
+  .section-head .count{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--steel);
+  }
+
+  /* Stat grid */
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;}
+  .stat-card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:12px 13px;
+    position:relative;
+  }
+  .stat-card .label{font-size:10px; text-transform:uppercase; letter-spacing:0.07em; color:var(--steel); font-weight:600;}
+  .stat-card .value{font-family:'IBM Plex Mono',monospace; font-size:21px; font-weight:600; margin-top:4px; color:var(--ink);}
+  .stat-card.accent-green .value{color:var(--green);}
+  .stat-card.accent-rust .value{color:var(--rust);}
+
+  /* Quick actions */
+  .quick-actions{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;}
+  .qa-btn{
+    background:var(--ink);
+    color:var(--text-on-ink);
+    border:none;
+    border-radius:3px;
+    padding:14px 10px;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+    display:flex; align-items:center; gap:8px;
+    cursor:pointer;
+  }
+  .qa-btn svg{width:16px;height:16px;stroke:var(--yellow); fill:none; flex-shrink:0;}
+
+  /* Docket card (job) */
+  .docket{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:2px;
+    margin-bottom:14px;
+    position:relative;
+    overflow:hidden;
+  }
+  .docket .perf{
+    height:0;
+    border-top:2px dashed var(--line);
+    margin:0 14px;
+  }
+  .docket-top{
+    padding:13px 14px 11px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .docket-no{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    font-weight:600;
+    background:var(--ink);
+    color:var(--yellow);
+    padding:3px 7px;
+    border-radius:2px;
+    display:inline-block;
+  }
+  .docket-client{font-weight:700; font-size:14.5px; margin-top:7px;}
+  .docket-desc{font-size:12.5px; color:var(--steel); margin-top:2px; line-height:1.35;}
+  .stamp{
+    font-family:'Archivo Black',sans-serif;
+    font-size:10.5px;
+    text-transform:uppercase;
+    padding:5px 9px;
+    border:2.5px solid;
+    border-radius:4px;
+    transform:rotate(-6deg);
+    white-space:nowrap;
+    flex-shrink:0;
+    margin-top:2px;
+  }
+  .stamp.st-progress{color:var(--yellow); border-color:var(--yellow);}
+  .stamp.st-completed{color:var(--green); border-color:var(--green);}
+  .stamp.st-hold{color:var(--steel); border-color:var(--steel);}
+  .stamp.st-notstarted{color:var(--rust); border-color:var(--rust);}
+
+  .docket-stats{
+    display:grid; grid-template-columns:repeat(3,1fr);
+    padding:10px 14px 13px;
+    gap:6px;
+  }
+  .docket-stats div{font-size:10px; text-transform:uppercase; color:var(--steel); font-weight:600;}
+  .docket-stats .v{font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); display:block; margin-top:2px; font-weight:600;}
+  .docket-stats .v.neg{color:var(--rust);}
+  .docket-stats .v.pos{color:var(--green);}
+
+  .docket-foot{
+    display:flex; border-top:1px solid var(--paper-2);
+  }
+  .docket-foot button{
+    flex:1; background:none; border:none; padding:10px 6px;
+    font-size:11px; font-weight:700; text-transform:uppercase; color:var(--ink-2);
+    border-right:1px solid var(--paper-2); cursor:pointer;
+  }
+  .docket-foot button:last-child{border-right:none;}
+
+  /* Job detail expanded */
+  .job-detail{padding:0 14px 14px; border-top:1px solid var(--paper-2);}
+  .job-detail h3{font-size:11px; text-transform:uppercase; color:var(--steel); margin:12px 0 6px;}
+  .mini-row{display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; border-bottom:1px dotted var(--line);}
+  .mini-row .amt{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+  .status-select{
+    margin-top:10px; width:100%; padding:9px; border:1px solid var(--line); border-radius:3px;
+    font-family:'Inter'; font-size:13px; background:#fff;
+  }
+
+  /* Forms */
+  .form-card{background:#fff; border:1px solid var(--line); border-radius:3px; padding:16px; margin-bottom:16px;}
+  .form-card h2{font-size:14px; text-transform:uppercase; margin:0 0 12px;}
+  label{display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--steel); margin-bottom:5px; margin-top:12px;}
+  label:first-of-type{margin-top:0;}
+  input, select, textarea{
+    width:100%; padding:10px 11px; border:1px solid var(--line); border-radius:3px;
+    font-family:'Inter',sans-serif; font-size:14.5px; background:#FBF9F3; color:var(--ink);
+  }
+  textarea{resize:vertical; min-height:50px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .submit-btn{
+    margin-top:16px; width:100%; padding:13px; background:var(--ink); color:var(--yellow);
+    border:none; border-radius:3px; font-weight:700; text-transform:uppercase; font-size:13px; letter-spacing:0.03em; cursor:pointer;
+  }
+  .helper-calc{font-size:11.5px; color:var(--steel); margin-top:5px; font-family:'IBM Plex Mono',monospace;}
+
+  /* List rows (expenses/time/invoices) */
+  .list-row{
+    background:#fff; border:1px solid var(--line); border-radius:3px; padding:11px 13px; margin-bottom:8px;
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+  }
+  .list-row .left{min-width:0;}
+  .list-row .title{font-weight:700; font-size:13.5px;}
+  .list-row .meta{font-size:11px; color:var(--steel); margin-top:2px;}
+  .list-row .right{text-align:right; flex-shrink:0;}
+  .list-row .amt{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:14px;}
+  .list-row .del{background:none;border:none;color:var(--rust);font-size:11px;font-weight:700;cursor:pointer;padding:4px 0 0; text-transform:uppercase;}
+  .badge-small{font-size:9px; font-weight:700; text-transform:uppercase; padding:2px 6px; border-radius:10px; display:inline-block; margin-left:6px;}
+  .badge-paid{background:#E4EFEA; color:var(--green);}
+  .badge-outstanding{background:#F7E5E3; color:var(--rust);}
+
+  .empty-state{
+    text-align:center; padding:40px 20px; color:var(--steel);
+  }
+  .empty-state .display{font-size:15px; color:var(--ink); margin-bottom:6px;}
+
+  .fab-add{
+    display:block; width:100%; padding:12px; margin-bottom:16px;
+    background:var(--yellow); color:var(--ink); border:none; border-radius:3px;
+    font-weight:700; text-transform:uppercase; font-size:13px; cursor:pointer;
+  }
+
+  .rate-box{
+    background:#fff; border:1px solid var(--line); border-radius:3px; padding:12px 14px;
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;
+  }
+  .rate-box label{margin:0; font-size:11px;}
+  .rate-box input{width:90px; padding:6px 8px; text-align:right; font-family:'IBM Plex Mono',monospace;}
+
+  .toast{
+    position:fixed; bottom:76px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--yellow); padding:10px 18px; border-radius:20px;
+    font-size:12.5px; font-weight:700; z-index:50; box-shadow:0 4px 14px rgba(0,0,0,0.3);
+    opacity:0; pointer-events:none; transition:opacity 0.25s;
+  }
+  .toast.show{opacity:1;}
+
+  ::-webkit-scrollbar{width:0;}
+
+  .invoice-detail{background:#fff;border:1px solid var(--line);border-radius:3px;padding:18px;margin-bottom:14px;}
+  .invoice-detail .inv-head{display:flex;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:12px;}
+  .invoice-detail .inv-head .no{font-family:'IBM Plex Mono';font-weight:600;}
+  .invoice-line{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;}
+  .invoice-total{display:flex;justify-content:space-between;font-weight:700;font-size:15px;border-top:1px solid var(--line);padding-top:8px;margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand display">G. CAPORN <span>CONTRACTING</span></div>
+    <div class="sub">Jobs · Expenses · Invoices · Time</div>
+  </header>
+  <main id="main"></main>
+  <div class="toast" id="toast"></div>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script>
+/* ---------------- ICONS ---------------- */
+const ICONS = {
+  dashboard: `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>`,
+  jobs: `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v13H3z"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+  expenses: `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+  invoices: `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>`,
+  time: `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`
+};
+
+/* ---------------- STATE ---------------- */
+let state = {
+  rate: 55,
+  jobs: [],
+  expenses: [],
+  time: [],
+  invoices: []
+};
+let currentTab = 'dashboard';
+let storageOk = true;
+let expandedJob = null;
+
+const STORAGE_KEY = 'gcaporn-tracker-v1';
+
+function seedData(){
+  const J = (id,no,client,address,desc,started,status,pricingType,rate,fixedPrice)=>({id,no,client,address,desc,started,status,pricingType,rate,fixedPrice});
+  state.jobs = [
+    J(1,'J001','Rhys Coleman','14 Sherbourne St, Cockburn Central','Vacuum out roof insulation','2026-07-06','Completed','fixed',0,250),
+    J(2,'J002','Rhiannon Ivey','33 Hotham St, Bayswater','Roof pressure cleaning + hot water washer hire','2026-07-17','Completed','fixed',0,2000),
+    J(3,'J003','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Bathroom exhaust vent install + roof flume through tiled roof','2026-07-17','Completed','fixed',0,800),
+    J(4,'J004','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Ceiling vacuum extraction and re-strapping plaster glass ceiling','2026-07-02','Completed','fixed',0,600),
+    J(5,'J005','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Remove gutters/fascia, reinstall new fascia+soffit, refix sub-fascia — south side','2026-07-04','Completed','fixed',0,2200),
+    J(6,'J006','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Remove roller shutters and reinstall when required','2026-07-07','Completed','fixed',0,300),
+    J(7,'J007','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Window restore','2026-07-02','In Progress','fixed',0,0),
+    J(8,'J008','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Eaves replacement','2026-07-08','In Progress','fixed',0,0),
+    J(9,'J009','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Wall chase patching (plaster/render repair)','2026-07-09','In Progress','fixed',0,0),
+    J(10,'J010','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Ridge repair','2026-07-09','In Progress','fixed',0,0),
+    J(11,'J011','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Flue installation','2026-07-15','In Progress','fixed',0,0),
+  ];
+  const E = (id,jobId,date,category,desc,supplier,cost)=>({id,jobId,date,category,desc,supplier,cost});
+  state.expenses = [
+    E(1,1,'2026-07-06','Materials','Duct tape',null,8.01),
+    E(2,1,'2026-07-06','Materials','Hose for extraction',null,39.42),
+    E(3,1,'2026-07-06','Materials','Respirator (3M half-face) + duct tape','Bunnings Cockburn Central',105.48),
+    E(4,1,'2026-07-06','Materials','AGI pipe coupling + AGI pipe stretch','Bunnings Cockburn Central',39.42),
+    E(5,7,'2026-07-02','Materials','Spray metalshield x2 + PVC jointer moulding x2','Bunnings Innaloo',47.60),
+    E(6,7,'2026-07-08','Materials','Spray paint, caustic soda, shower head','Bunnings Bayswater',66.13),
+    E(7,7,'2026-07-09','Materials','Sander, nailer, hinges x6, brad nails','Bunnings Bayswater',233.20),
+    E(8,7,'2026-07-10','Materials','Mini rollers, cleaner, car care items, glue, masking tape, conduit','Bunnings Bayswater',102.16),
+    E(9,8,'2026-07-08','Materials','Multi tool blades x2 (Diablo Starlock)','Bunnings Bayswater',158.56),
+    E(10,8,'2026-07-09','Materials','Line level','Bunnings Bayswater',3.60),
+    E(11,8,'2026-07-09','Materials','PVC jointer moulding x2 + Hardiflex cladding x6','Bunnings Bayswater',239.81),
+    E(12,8,'2026-07-15','Materials','Compass, unitie brackets x5, ruler','Bunnings Bayswater',24.37),
+    E(13,9,'2026-07-09','Materials','Cement + sand plastering',"Bunnings O'Connor",23.11),
+    E(14,10,'2026-07-09','Materials','Selleys pointing compound + pointing trowel','Bunnings Melville',62.35),
+    E(15,11,'2026-07-15','Materials','Lead sheet squares','Bunnings Bayswater',40.18),
+  ];
+  const I = (id,no,jobId,client,date,amount,received)=>({id,no,jobId,client,date,amount,received});
+  state.invoices = [
+    I(1,'J001',1,'Rhys Coleman','2026-07-06',250,250),
+    I(2,'J002-A',2,'Rhiannon Ivey','2026-07-10',1000,1000),
+    I(3,'J002-B',2,'Rhiannon Ivey','2026-07-17',1000,1000),
+    I(4,'J003',3,'33 Hotham St, Bayswater','2026-07-17',800,0),
+    I(5,'J004',4,'33 Hotham St, Bayswater','2026-07-02',600,0),
+    I(6,'J005',5,'33 Hotham St, Bayswater','2026-07-04',2200,0),
+    I(7,'J006',6,'33 Hotham St, Bayswater','2026-07-07',300,0),
+  ];
+  state.time = [];
+}
+
+async function loadState(){
+  if(typeof window.storage !== 'undefined'){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      if(res && res.value){
+        state = JSON.parse(res.value);
+        storageOk = true;
+        return;
+      }
+    }catch(e){ /* not found */ }
+  } else {
+    // Standalone mode (outside Claude) — use this browser's local storage instead
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ state = JSON.parse(raw); storageOk = true; return; }
+    }catch(e){ /* not available or empty */ }
+  }
+  seedData();
+  await saveState();
+}
+async function saveState(){
+  const payload = JSON.stringify(state);
+
+  if(typeof window.storage === 'undefined'){
+    // Standalone mode (outside Claude) — save to this browser only
+    try{
+      localStorage.setItem(STORAGE_KEY, payload);
+      storageOk = true;
+      return true;
+    }catch(e){
+      storageOk = false;
+      showToast('⚠ Not saved — export to Excel to be safe');
+      return false;
+    }
+  }
+
+  for(let attempt=1; attempt<=2; attempt++){
+    try{
+      const res = await window.storage.set(STORAGE_KEY, payload, false);
+      if(res){ storageOk = true; return true; }
+    }catch(e){
+      console.error('save attempt '+attempt+' failed', e);
+    }
+    if(attempt===1) await new Promise(r=>setTimeout(r, 600));
+  }
+  storageOk = false;
+  showToast('⚠ Not saved — export to Excel to be safe');
+  return false;
+}
+
+/* ---------------- HELPERS ---------------- */
+const money = n => (n<0?'-$':'$') + Math.abs(n).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+const fmtDate = d => { if(!d) return '—'; const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}); };
+function jobById(id){ return state.jobs.find(j=>j.id===id); }
+function jobExpenseTotal(jobId){ return state.expenses.filter(e=>e.jobId===jobId).reduce((s,e)=>s+e.cost,0); }
+function jobHours(jobId){ return state.time.filter(t=>t.jobId===jobId).reduce((s,t)=>s+t.hours,0); }
+function jobRevenue(job){
+  if(!job) return 0;
+  if(job.pricingType==='hourly') return jobHours(job.id) * (job.rate||0);
+  return job.fixedPrice||0;
+}
+function jobInvoicedTotal(jobId){ return state.invoices.filter(i=>i.jobId===jobId).reduce((s,i)=>s+i.amount,0); }
+function jobHasInvoice(jobId){ return state.invoices.some(i=>i.jobId===jobId); }
+function jobInvoiceAmount(job){
+  // Invoice total = job's labour/fixed value + materials/expenses on top (billed to client)
+  return jobRevenue(job) + jobExpenseTotal(job.id);
+}
+function jobReceivedTotal(jobId){ return state.invoices.filter(i=>i.jobId===jobId).reduce((s,i)=>s+i.received,0); }
+function jobProfit(job){ return jobRevenue(job) - jobExpenseTotal(job.id); }
+function jobMargin(job){ const rev = jobRevenue(job); return rev>0 ? (jobProfit(job)/rev*100) : null; }
+function nextJobNo(){ const n = state.jobs.length + 1; return 'J' + String(n).padStart(3,'0'); }
+function statusClass(s){
+  if(s==='Completed') return 'st-completed';
+  if(s==='In Progress') return 'st-progress';
+  if(s==='On Hold') return 'st-hold';
+  return 'st-notstarted';
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* ---------------- EXCEL EXPORT / IMPORT (source of truth) ---------------- */
+function exportToExcel(){
+  if(!window.XLSX){ showToast('Excel library failed to load'); return; }
+
+  const jobRows = state.jobs.map(j=>{
+    const rev = jobRevenue(j);
+    const exp = jobExpenseTotal(j.id);
+    return {
+      'Job No.': j.no,
+      'Client': j.client,
+      'Address': j.address || '',
+      'Description': j.desc || '',
+      'Date Started': j.started || '',
+      'Status': j.status,
+      'Pricing Type': j.pricingType==='hourly' ? 'Hourly' : 'Fixed',
+      'Hourly Rate': j.pricingType==='hourly' ? (j.rate||0) : '',
+      'Fixed Job Value': j.pricingType==='fixed' ? (j.fixedPrice||0) : '',
+      'Hours Logged': jobHours(j.id),
+      'Job Value ($)': rev,
+      'Expenses ($)': exp,
+      'Profit ($)': rev - exp,
+      'Invoiced ($)': jobInvoicedTotal(j.id),
+      'Received ($)': jobReceivedTotal(j.id)
+    };
+  });
+
+  const expenseRows = state.expenses.map(e=>{
+    const j = jobById(e.jobId);
+    return {
+      'Date': e.date,
+      'Job No.': j ? j.no : '',
+      'Category': e.category,
+      'Description': e.desc,
+      'Supplier': e.supplier || '',
+      'Cost ($)': e.cost
+    };
+  });
+
+  const timeRows = state.time.map(t=>{
+    const j = jobById(t.jobId);
+    return {
+      'Date': t.date,
+      'Job No.': j ? j.no : '',
+      'Started': t.start || '',
+      'Finished': t.finish || '',
+      'Hours': t.hours,
+      'Description': t.desc || ''
+    };
+  });
+
+  const invoiceRows = state.invoices.map(i=>{
+    const j = jobById(i.jobId);
+    return {
+      'Invoice No.': i.no,
+      'Job No.': j ? j.no : (i.jobNo||''),
+      'Client': i.client,
+      'Address': (j && j.address) || i.address || '',
+      'Date': i.date,
+      'Amount ($)': i.amount,
+      'Received ($)': i.received,
+      'Outstanding ($)': i.amount - i.received,
+      'Status': (i.amount - i.received) <= 0.001 ? 'Paid' : 'Outstanding'
+    };
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(jobRows), 'Job Register');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenseRows), 'Expenses');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(timeRows), 'Time');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invoiceRows), 'Invoices');
+
+  const stamp = todayISO();
+  XLSX.writeFile(wb, `GCaporn_Contracting_Tracker_${stamp}.xlsx`);
+  showToast('Excel file downloaded');
+}
+
+function importFromExcel(file){
+  const reader = new FileReader();
+  reader.onload = async (evt)=>{
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const jobSheet = wb.Sheets['Job Register'];
+      const expSheet = wb.Sheets['Expenses'];
+      const timeSheet = wb.Sheets['Time'];
+      const invSheet = wb.Sheets['Invoices'];
+      if(!jobSheet){ showToast('No "Job Register" sheet found'); return; }
+
+      const jobRows = XLSX.utils.sheet_to_json(jobSheet);
+      const expRows = expSheet ? XLSX.utils.sheet_to_json(expSheet) : [];
+      const timeRows = timeSheet ? XLSX.utils.sheet_to_json(timeSheet) : [];
+      const invRows = invSheet ? XLSX.utils.sheet_to_json(invSheet) : [];
+
+      const noToId = {};
+      const newJobs = jobRows.map((r,idx)=>{
+        const id = idx+1;
+        noToId[r['Job No.']] = id;
+        const pricingType = (r['Pricing Type']||'Fixed').toLowerCase()==='hourly' ? 'hourly' : 'fixed';
+        return {
+          id, no: r['Job No.'] || ('J'+String(id).padStart(3,'0')),
+          client: r['Client']||'', address: r['Address']||'', desc: r['Description']||'',
+          started: r['Date Started']||'', status: r['Status']||'In Progress',
+          pricingType, rate: parseFloat(r['Hourly Rate'])||0, fixedPrice: parseFloat(r['Fixed Job Value'])||0
+        };
+      });
+
+      const newExpenses = expRows.map((r,idx)=>({
+        id: idx+1, jobId: noToId[r['Job No.']] || null, date: r['Date']||'',
+        category: r['Category']||'Other', desc: r['Description']||'', supplier: r['Supplier']||null,
+        cost: parseFloat(r['Cost ($)'])||0
+      }));
+
+      const newTime = timeRows.map((r,idx)=>({
+        id: idx+1, jobId: noToId[r['Job No.']] || null, date: r['Date']||'',
+        start: r['Started']||'', finish: r['Finished']||'', hours: parseFloat(r['Hours'])||0, desc: r['Description']||''
+      }));
+
+      const newInvoices = invRows.map((r,idx)=>({
+        id: idx+1, no: r['Invoice No.']||'', jobId: noToId[r['Job No.']] || null, jobNo: r['Job No.']||'',
+        client: r['Client']||'', address: r['Address']||'', date: r['Date']||'',
+        amount: parseFloat(r['Amount ($)'])||0, received: parseFloat(r['Received ($)'])||0
+      }));
+
+      state.jobs = newJobs;
+      state.expenses = newExpenses;
+      state.time = newTime;
+      state.invoices = newInvoices;
+
+      await saveState();
+      currentTab = 'dashboard';
+      render();
+      showToast(`Imported ${newJobs.length} jobs from Excel`);
+    }catch(err){
+      console.error(err);
+      showToast('Could not read that file');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ---------------- PDF INVOICE GENERATION ---------------- */
+function generateInvoicePDF(invoice){
+  if(!window.jspdf){ showToast('PDF library failed to load'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 48;
+  let y = 56;
+
+  // Header
+  doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  doc.text('G. CAPORN CONTRACTING', marginX, y);
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text('INVOICE', pageWidth - marginX, y, {align:'right'});
+  y += 18;
+  doc.setDrawColor(28,40,51); doc.setLineWidth(1.2);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 26;
+
+  // Invoice meta
+  doc.setFontSize(10); doc.setTextColor(90,90,90);
+  doc.text('Invoice No.', marginX, y);
+  doc.text('Date', pageWidth/2, y);
+  y += 14;
+  doc.setFontSize(13); doc.setTextColor(20,20,20); doc.setFont('helvetica','bold');
+  doc.text(invoice.no, marginX, y);
+  doc.setFont('helvetica','normal');
+  doc.text(fmtDate(invoice.date), pageWidth/2, y);
+  y += 30;
+
+  // Bill to
+  doc.setFontSize(10); doc.setTextColor(90,90,90); doc.text('BILL TO', marginX, y);
+  y += 15;
+  doc.setFontSize(12); doc.setTextColor(20,20,20); doc.setFont('helvetica','bold');
+  doc.text(invoice.client || '', marginX, y);
+  y += 15;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+  if(invoice.address){ doc.text(invoice.address, marginX, y); y += 14; }
+  y += 12;
+
+  // Job description
+  if(invoice.jobDesc){
+    doc.setFontSize(10); doc.setTextColor(90,90,90); doc.setFont('helvetica','normal');
+    doc.text('JOB DESCRIPTION', marginX, y);
+    y += 15;
+    doc.setFontSize(10.5); doc.setTextColor(20,20,20);
+    const lines = doc.splitTextToSize(invoice.jobDesc, pageWidth - marginX*2);
+    doc.text(lines, marginX, y);
+    y += lines.length*13;
+  }
+  y += 16;
+
+  // Line items table header
+  doc.setFillColor(28,40,51);
+  doc.rect(marginX, y, pageWidth-marginX*2, 22, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('DESCRIPTION', marginX+8, y+15);
+  doc.text('AMOUNT', pageWidth-marginX-8, y+15, {align:'right'});
+  y += 22;
+
+  doc.setTextColor(20,20,20); doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+  const li = invoice.lineItems;
+  const rowLine = (label, amount, indent)=>{
+    doc.text(label, marginX+8+(indent||0), y+15, {maxWidth: pageWidth-marginX*2-100});
+    doc.text(money(amount), pageWidth-marginX-8, y+15, {align:'right'});
+    y += 20;
+  };
+  if(li){
+    rowLine(li.labourLabel, li.labourAmount);
+    if(li.expenses && li.expenses.length){
+      y += 4;
+      doc.setFont('helvetica','bold'); doc.text('Materials & expenses:', marginX+8, y+13); y += 16;
+      doc.setFont('helvetica','normal');
+      li.expenses.forEach(exp=>{
+        const label = exp.desc + (exp.supplier ? ` (${exp.supplier})` : '');
+        rowLine(label, exp.cost, 6);
+      });
+    }
+  } else {
+    rowLine('Job total', invoice.amount);
+  }
+
+  y += 6;
+  doc.setDrawColor(200,200,200); doc.line(marginX, y, pageWidth-marginX, y);
+  y += 22;
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('TOTAL (no GST charged)', marginX+8, y);
+  doc.text(money(invoice.amount), pageWidth-marginX-8, y, {align:'right'});
+  y += 26;
+
+  if(invoice.received > 0){
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+    doc.text(`Received: ${money(invoice.received)}`, marginX+8, y);
+    y += 14;
+    const bal = invoice.amount - invoice.received;
+    if(bal > 0.01){ doc.text(`Balance due: ${money(bal)}`, marginX+8, y); y += 14; }
+  }
+
+  y += 30;
+  doc.setFontSize(9); doc.setTextColor(120,120,120);
+  doc.text('No GST is charged on this invoice.', marginX, y);
+
+  doc.save(`Invoice_${invoice.no}.pdf`);
+}
+
+/* ---------------- RENDER: TABS ---------------- */
+function renderTabbar(){
+  const tabs = [
+    {id:'dashboard', label:'Dashboard', icon:ICONS.dashboard},
+    {id:'jobs', label:'Jobs', icon:ICONS.jobs},
+    {id:'expenses', label:'Expenses', icon:ICONS.expenses},
+    {id:'invoices', label:'Invoices', icon:ICONS.invoices},
+    {id:'time', label:'Time', icon:ICONS.time},
+  ];
+  const bar = document.getElementById('tabbar');
+  bar.innerHTML = tabs.map(t => `
+    <button class="${currentTab===t.id?'active':''}" data-tab="${t.id}">
+      ${t.icon}
+      <span>${t.label}</span>
+    </button>
+  `).join('');
+  bar.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ currentTab = btn.dataset.tab; expandedJob=null; render(); });
+  });
+}
+
+/* ---------------- RENDER: DASHBOARD ---------------- */
+function renderDashboard(){
+  const totalJobs = state.jobs.length;
+  const inProgress = state.jobs.filter(j=>j.status==='In Progress').length;
+  const totalInvoiced = state.invoices.reduce((s,i)=>s+i.amount,0);
+  const totalReceived = state.invoices.reduce((s,i)=>s+i.received,0);
+  const outstanding = totalInvoiced - totalReceived;
+  const totalExpenses = state.expenses.reduce((s,e)=>s+e.cost,0);
+  const totalRevenue = state.jobs.reduce((s,j)=>s+jobRevenue(j),0);
+  const profit = totalRevenue - totalExpenses;
+
+  // recent money in/out ledger, last 6
+  const ledger = [];
+  state.invoices.forEach(i=>{ if(i.received>0) ledger.push({date:i.date, label:`Payment — ${i.client}`, amt:i.received, dir:'in'}); });
+  state.expenses.forEach(e=>{ ledger.push({date:e.date, label:e.desc, amt:e.cost, dir:'out'}); });
+  ledger.sort((a,b)=> b.date.localeCompare(a.date));
+
+  return `
+    <div class="section-head"><h1 class="display">Dashboard</h1></div>
+    ${!storageOk ? `<div style="background:#F7E5E3; border:1px solid var(--rust); color:var(--rust); border-radius:3px; padding:11px 13px; margin-bottom:14px; font-size:12.5px; font-weight:600;">⚠ Auto-save isn't working right now — nothing typed will be kept if you close this. Use <b>Export to Excel</b> below often as a backup.</div>` : ''}
+    <div class="stat-grid">
+      <div class="stat-card"><div class="label">Total Jobs</div><div class="value">${totalJobs}</div></div>
+      <div class="stat-card"><div class="label">In Progress</div><div class="value">${inProgress}</div></div>
+      <div class="stat-card"><div class="label">Job Value</div><div class="value">${money(totalRevenue)}</div></div>
+      <div class="stat-card"><div class="label">Expenses</div><div class="value">${money(totalExpenses)}</div></div>
+      <div class="stat-card accent-rust"><div class="label">Outstanding</div><div class="value">${money(outstanding)}</div></div>
+      <div class="stat-card ${profit>=0?'accent-green':'accent-rust'}"><div class="label">P&amp;L Profit</div><div class="value">${money(profit)}</div></div>
+    </div>
+    <div class="quick-actions">
+      <button class="qa-btn" data-action="add-expense">${ICONS.expenses}Add Expense</button>
+      <button class="qa-btn" data-action="log-time">${ICONS.time}Log Time</button>
+      <button class="qa-btn" data-action="new-invoice">${ICONS.invoices}New Invoice</button>
+      <button class="qa-btn" data-action="new-job">${ICONS.jobs}New Job</button>
+    </div>
+    <div class="form-card" style="margin-bottom:18px;">
+      <h2>Excel record</h2>
+      <div style="font-size:12px; color:var(--steel); margin-bottom:8px; line-height:1.4;">This is your master copy — every job, expense, time entry and invoice, in one spreadsheet. Export it after a work session, or import an older one to restore your data.</div>
+      <div style="font-size:11px; color:var(--steel); margin-bottom:12px; font-style:italic;">Saving to: ${typeof window.storage !== 'undefined' ? 'Claude (synced to your account)' : 'this browser only — export regularly to keep a safe copy'}</div>
+      <button class="submit-btn" data-action="export-excel" style="margin-top:0;">Export to Excel</button>
+      <button class="submit-btn" data-action="import-excel-trigger" style="margin-top:8px; background:var(--steel);">Import from Excel</button>
+      <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="display:none;">
+    </div>
+    <div class="section-head"><h1 class="display" style="font-size:14px;">Recent money in / out</h1></div>
+    ${ledger.length===0 ? `<div class="empty-state">No transactions yet.</div>` :
+      ledger.slice(0,8).map(l=>`
+        <div class="list-row">
+          <div class="left">
+            <div class="title">${l.label}</div>
+            <div class="meta">${fmtDate(l.date)}</div>
+          </div>
+          <div class="right">
+            <div class="amt" style="color:${l.dir==='in'?'var(--green)':'var(--rust)'}">${l.dir==='in'?'+':'−'}${money(l.amt)}</div>
+          </div>
+        </div>
+      `).join('')
+    }
+  `;
+}
+
+/* ---------------- RENDER: JOBS ---------------- */
+function renderJobs(){
+  const sorted = [...state.jobs].sort((a,b)=> (a.status==='Completed')-(b.status==='Completed') || b.started.localeCompare(a.started));
+  return `
+    <div class="section-head"><h1 class="display">Jobs</h1><span class="count">${state.jobs.length} total</span></div>
+    <button class="fab-add" data-action="new-job">+ New Job</button>
+    ${sorted.map(j=>{
+      const exp = jobExpenseTotal(j.id);
+      const hrs = jobHours(j.id);
+      const rev = jobRevenue(j);
+      const inv = jobInvoicedTotal(j.id);
+      const rec = jobReceivedTotal(j.id);
+      const profit = jobProfit(j);
+      const margin = jobMargin(j);
+      const isOpen = expandedJob === j.id;
+      return `
+      <div class="docket">
+        <div class="docket-top">
+          <div>
+            <span class="docket-no mono">${j.no}</span>
+            <div class="docket-client">${j.client}</div>
+            ${j.address ? `<div class="docket-desc" style="font-weight:600;color:var(--ink-2);">${j.address}</div>` : ''}
+            <div class="docket-desc">${j.desc}</div>
+          </div>
+          <div class="stamp ${statusClass(j.status)}">${j.status}</div>
+        </div>
+        <div class="docket-stats">
+          <div>${j.pricingType==='hourly'?'Value (hrs×rate)':'Job Value'}<span class="v">${money(rev)}</span></div>
+          <div>Expenses<span class="v neg">${money(exp)}</span></div>
+          <div>P&amp;L<span class="v ${profit>=0?'pos':'neg'}">${money(profit)}</span></div>
+        </div>
+        <div class="docket-foot">
+          <button data-action="toggle-job" data-id="${j.id}">${isOpen?'Hide':'Detail'}</button>
+          <button data-action="add-expense" data-jobid="${j.id}">+ Exp.</button>
+          <button data-action="log-time" data-jobid="${j.id}">+ Time</button>
+          <button data-action="new-invoice" data-jobid="${j.id}">${jobHasInvoice(j.id)?'Invoiced':'+ Inv.'}</button>
+        </div>
+        ${isOpen ? `
+        <div class="job-detail">
+          <label style="margin-top:12px;">Status</label>
+          <select class="status-select" data-action="change-status" data-id="${j.id}">
+            ${['Not Started','In Progress','On Hold','Completed'].map(s=>`<option value="${s}" ${s===j.status?'selected':''}>${s}</option>`).join('')}
+          </select>
+
+          <label style="margin-top:12px;">Pricing</label>
+          <div class="row2">
+            <select class="status-select" data-action="change-pricing-type" data-id="${j.id}">
+              <option value="fixed" ${j.pricingType==='fixed'?'selected':''}>Whole job amount</option>
+              <option value="hourly" ${j.pricingType==='hourly'?'selected':''}>Hourly rate</option>
+            </select>
+            ${j.pricingType==='hourly' ? `
+              <input type="number" step="1" class="status-select" placeholder="$/hr" value="${j.rate||''}" data-action="change-rate" data-id="${j.id}">
+            ` : `
+              <input type="number" step="1" class="status-select" placeholder="Job value $" value="${j.fixedPrice||''}" data-action="change-fixed" data-id="${j.id}">
+            `}
+          </div>
+
+          <h3>Profit &amp; Loss</h3>
+          <div class="mini-row"><span>${j.pricingType==='hourly'?`Revenue (${hrs.toFixed(1)} hrs × ${money(j.rate||0)})`:'Job value'}</span><span class="amt">${money(rev)}</span></div>
+          <div class="mini-row"><span>Expenses</span><span class="amt" style="color:var(--rust)">−${money(exp)}</span></div>
+          <div class="mini-row" style="font-weight:700;border-bottom:none;"><span>Profit${margin!==null?` (${margin.toFixed(0)}% margin)`:''}</span><span class="amt" style="color:${profit>=0?'var(--green)':'var(--rust)'}">${money(profit)}</span></div>
+
+          <h3>Expenses (${money(exp)})</h3>
+          ${state.expenses.filter(e=>e.jobId===j.id).length===0 ? `<div class="mini-row" style="color:var(--steel)">No expenses logged</div>` :
+            state.expenses.filter(e=>e.jobId===j.id).map(e=>`<div class="mini-row"><span>${e.desc}</span><span class="amt">${money(e.cost)}</span></div>`).join('')}
+          <h3>Time (${hrs.toFixed(1)} hrs)</h3>
+          ${state.time.filter(t=>t.jobId===j.id).length===0 ? `<div class="mini-row" style="color:var(--steel)">No time logged</div>` :
+            state.time.filter(t=>t.jobId===j.id).map(t=>`<div class="mini-row"><span>${fmtDate(t.date)} — ${t.desc||'Work'}</span><span class="amt">${t.hours}h</span></div>`).join('')}
+          <h3>Invoices sent (${money(inv)} · ${money(rec)} received)</h3>
+          ${state.invoices.filter(i=>i.jobId===j.id).length===0 ? `<div class="mini-row" style="color:var(--steel)">No invoices sent</div>` :
+            state.invoices.filter(i=>i.jobId===j.id).map(i=>`<div class="mini-row"><span>${i.no} — ${fmtDate(i.date)}</span><span class="amt">${money(i.amount)}</span></div>`).join('')}
+        </div>
+        ` : ''}
+      </div>
+      `;
+    }).join('')}
+  `;
+}
+
+/* ---------------- RENDER: EXPENSES ---------------- */
+let expenseFormJobId = null;
+function renderExpenses(){
+  const sorted = [...state.expenses].sort((a,b)=> b.date.localeCompare(a.date));
+  const total = state.expenses.reduce((s,e)=>s+e.cost,0);
+  return `
+    <div class="section-head"><h1 class="display">Expenses</h1><span class="count">${money(total)} total</span></div>
+    <div class="form-card">
+      <h2>Add expense</h2>
+      <label>Job</label>
+      <select id="exp-job">
+        ${state.jobs.map(j=>`<option value="${j.id}" ${expenseFormJobId===j.id?'selected':''}>${j.no} — ${j.client}</option>`).join('')}
+      </select>
+      <div class="row2">
+        <div><label>Date</label><input type="date" id="exp-date" value="${todayISO()}"></div>
+        <div><label>Category</label>
+          <select id="exp-category">
+            ${['Materials','Fuel','Tool Hire','Equipment','Subcontractor','Permits/Fees','Waste Disposal','Other'].map(c=>`<option value="${c}">${c}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <label>Description</label>
+      <input type="text" id="exp-desc" placeholder="e.g. Roof screws + flashing">
+      <label>Supplier (optional)</label>
+      <input type="text" id="exp-supplier" placeholder="e.g. Bunnings Bayswater">
+      <label>Amount — inc GST ($)</label>
+      <input type="number" step="0.01" id="exp-amount" placeholder="0.00">
+      <button class="submit-btn" data-action="submit-expense">Save Expense</button>
+    </div>
+    ${sorted.length===0 ? `<div class="empty-state"><div class="display">No expenses yet</div>Add your first purchase above.</div>` :
+      sorted.map(e=>{
+        const j = jobById(e.jobId);
+        return `
+        <div class="list-row">
+          <div class="left">
+            <div class="title">${e.desc}</div>
+            <div class="meta">${j?j.no:'—'} · ${e.category} · ${fmtDate(e.date)}${e.supplier?' · '+e.supplier:''}</div>
+          </div>
+          <div class="right">
+            <div class="amt">${money(e.cost)}</div>
+            <button class="del" data-action="delete-expense" data-id="${e.id}">Delete</button>
+          </div>
+        </div>`;
+      }).join('')}
+  `;
+}
+
+/* ---------------- RENDER: INVOICES ---------------- */
+let invoiceFormJobId = null;
+function renderInvoices(){
+  const sorted = [...state.invoices].sort((a,b)=> b.date.localeCompare(a.date));
+  const totalOutstanding = state.invoices.reduce((s,i)=>s+(i.amount-i.received),0);
+
+  const uninvoicedJobs = state.jobs.filter(j=>!jobHasInvoice(j.id));
+  if(invoiceFormJobId && !uninvoicedJobs.find(j=>j.id===invoiceFormJobId)){
+    invoiceFormJobId = uninvoicedJobs[0] ? uninvoicedJobs[0].id : null;
+  }
+  const selectedJobId = invoiceFormJobId || (uninvoicedJobs[0] && uninvoicedJobs[0].id);
+  const selJob = jobById(selectedJobId);
+
+  let formHtml = '';
+  if(!selJob){
+    formHtml = `<div class="form-card"><h2>New invoice</h2><div class="empty-state" style="padding:10px 0;">Every job already has an invoice.<br>Add a new job to invoice it.</div></div>`;
+  } else {
+    const jobValue = jobRevenue(selJob);
+    const jobExpenses = jobExpenseTotal(selJob.id);
+    const total = jobInvoiceAmount(selJob);
+    formHtml = `
+    <div class="form-card">
+      <h2>New invoice</h2>
+      <label>Job</label>
+      <select id="inv-job" data-action="select-invoice-job">
+        ${uninvoicedJobs.map(j=>`<option value="${j.id}" ${selectedJobId===j.id?'selected':''}>${j.no} — ${j.client}</option>`).join('')}
+      </select>
+      <div style="background:var(--paper-2); border:1px solid var(--line); border-radius:3px; padding:10px 12px; margin:12px 0; font-size:12px;">
+        <div style="font-weight:700; margin-bottom:4px;">${selJob.no} — ${selJob.address || selJob.client}</div>
+        <div style="color:var(--steel);">${selJob.desc}</div>
+        <div class="mini-row" style="margin-top:8px;"><span>${selJob.pricingType==='hourly'?`Labour (${jobHours(selJob.id).toFixed(1)} hrs × ${money(selJob.rate||0)})`:'Job amount'}</span><span class="amt">${money(jobValue)}</span></div>
+        <div class="mini-row"><span>Materials / expenses</span><span class="amt">${money(jobExpenses)}</span></div>
+        <div class="mini-row" style="font-weight:700; border-bottom:none;"><span>Invoice total</span><span class="amt">${money(total)}</span></div>
+      </div>
+      <div class="row2">
+        <div><label>Invoice No.</label><input type="text" id="inv-no" value="${selJob.no}"></div>
+        <div><label>Date</label><input type="date" id="inv-date" value="${todayISO()}"></div>
+      </div>
+      <label>Amount ($) — no GST charged</label>
+      <input type="number" step="0.01" id="inv-amount" value="${total.toFixed(2)}">
+      <button class="submit-btn" data-action="submit-invoice" data-jobid="${selJob.id}">Create Invoice + PDF</button>
+    </div>`;
+  }
+
+  return `
+    <div class="section-head"><h1 class="display">Invoices</h1><span class="count">${money(totalOutstanding)} outstanding</span></div>
+    ${formHtml}
+    ${sorted.length===0 ? `<div class="empty-state"><div class="display">No invoices yet</div>Create your first invoice above.</div>` :
+      sorted.map(i=>{
+        const j = jobById(i.jobId);
+        const outstanding = i.amount - i.received;
+        const paid = outstanding <= 0.001;
+        return `
+        <div class="invoice-detail">
+          <div class="inv-head">
+            <div><span class="no">${i.no}</span><div class="meta" style="font-size:11px;color:var(--steel);margin-top:2px;">${j?j.no:(i.jobNo||'')}${(j&&j.address)||i.address?' · '+((j&&j.address)||i.address):''} · ${fmtDate(i.date)}</div></div>
+            <span class="badge-small ${paid?'badge-paid':'badge-outstanding'}">${paid?'Paid':'Outstanding'}</span>
+          </div>
+          <div style="font-weight:700;margin-bottom:8px;">${i.client}</div>
+          ${(j&&j.desc)||i.jobDesc ? `<div style="font-size:12px;color:var(--steel);margin-bottom:8px;">${(j&&j.desc)||i.jobDesc}</div>` : ''}
+          <div class="invoice-total"><span>Amount</span><span class="amt mono">${money(i.amount)}</span></div>
+          <div class="invoice-line" style="margin-top:8px;"><span>Received</span><span class="amt mono" style="color:var(--green)">${money(i.received)}</span></div>
+          ${!paid ? `<div class="invoice-line"><span>Outstanding</span><span class="amt mono" style="color:var(--rust)">${money(outstanding)}</span></div>` : ''}
+          <button class="submit-btn" style="margin-top:12px; background:var(--steel); color:#fff;" data-action="download-pdf" data-id="${i.id}">Download PDF</button>
+          ${!paid ? `<button class="submit-btn" style="margin-top:8px;" data-action="mark-paid" data-id="${i.id}">Record full payment</button>` : ''}
+          <button class="del" style="margin-top:10px;" data-action="delete-invoice" data-id="${i.id}">Delete invoice</button>
+        </div>`;
+      }).join('')}
+  `;
+}
+
+/* ---------------- RENDER: TIME ---------------- */
+function calcHours(start, finish){
+  if(!start || !finish) return 0;
+  const [sh,sm] = start.split(':').map(Number);
+  const [fh,fm] = finish.split(':').map(Number);
+  let mins = (fh*60+fm) - (sh*60+sm);
+  if(mins < 0) mins += 24*60; // finished after midnight
+  return +(mins/60).toFixed(2);
+}
+
+function renderTime(){
+  const sorted = [...state.time].sort((a,b)=> b.date.localeCompare(a.date));
+  const totalHours = state.time.reduce((s,t)=>s+t.hours,0);
+  return `
+    <div class="section-head"><h1 class="display">Time</h1><span class="count">${totalHours.toFixed(1)} hrs total</span></div>
+    <div class="rate-box">
+      <label>Default rate for new hourly jobs</label>
+      <input type="number" step="1" id="rate-input" value="${state.rate}">
+    </div>
+    <div class="form-card">
+      <h2>Log time</h2>
+      <label>Job</label>
+      <select id="time-job">
+        ${state.jobs.map(j=>`<option value="${j.id}">${j.no} — ${j.client}</option>`).join('')}
+      </select>
+      <label>Date</label>
+      <input type="date" id="time-date" value="${todayISO()}">
+      <div class="row2">
+        <div><label>Started</label><input type="time" id="time-start"></div>
+        <div><label>Finished</label><input type="time" id="time-finish"></div>
+      </div>
+      <div class="helper-calc" id="time-hours-preview">Hours worked: 0.00</div>
+      <label>What did you do?</label>
+      <input type="text" id="time-desc" placeholder="e.g. Removed old fascia, measured new lengths">
+      <button class="submit-btn" data-action="submit-time">Save Time Entry</button>
+    </div>
+    ${sorted.length===0 ? `<div class="empty-state"><div class="display">No time logged yet</div>Log your first entry above.</div>` :
+      sorted.map(t=>{
+        const j = jobById(t.jobId);
+        return `
+        <div class="list-row">
+          <div class="left">
+            <div class="title">${t.desc || 'Work logged'}</div>
+            <div class="meta">${j?j.no:'—'} · ${fmtDate(t.date)}${t.start&&t.finish?` · ${t.start}–${t.finish}`:''}</div>
+          </div>
+          <div class="right">
+            <div class="amt">${t.hours}h</div>
+            <button class="del" data-action="delete-time" data-id="${t.id}">Delete</button>
+          </div>
+        </div>`;
+      }).join('')}
+  `;
+}
+
+/* ---------------- MODALS (New Job) ---------------- */
+let newJobPricingType = 'fixed';
+function renderNewJobForm(){
+  return `
+    <div class="section-head"><h1 class="display">New Job</h1></div>
+    <div class="form-card">
+      <label>Client name</label>
+      <input type="text" id="nj-client" placeholder="e.g. Jane Smith">
+      <label>Address</label>
+      <input type="text" id="nj-address" placeholder="e.g. 12 Example St, Suburb">
+      <label>Job description</label>
+      <textarea id="nj-desc" placeholder="e.g. Replace guttering + downpipes"></textarea>
+      <div class="row2">
+        <div><label>Date started</label><input type="date" id="nj-date" value="${todayISO()}"></div>
+        <div><label>Status</label>
+          <select id="nj-status">
+            <option value="Not Started">Not Started</option>
+            <option value="In Progress" selected>In Progress</option>
+            <option value="On Hold">On Hold</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+      </div>
+      <label>What's this job worth?</label>
+      <select id="nj-pricing-type" data-action="toggle-newjob-pricing">
+        <option value="fixed" ${newJobPricingType==='fixed'?'selected':''}>Whole job amount</option>
+        <option value="hourly" ${newJobPricingType==='hourly'?'selected':''}>Hourly rate</option>
+      </select>
+      ${newJobPricingType==='hourly' ? `
+        <label>Hourly rate ($/hr)</label>
+        <input type="number" step="1" id="nj-rate" placeholder="e.g. 55" value="${state.rate||''}">
+      ` : `
+        <label>Job value ($)</label>
+        <input type="number" step="1" id="nj-fixed" placeholder="e.g. 1500">
+      `}
+      <button class="submit-btn" data-action="submit-newjob">Create Job — ${nextJobNo()}</button>
+    </div>
+  `;
+}
+
+/* ---------------- MAIN RENDER ---------------- */
+function render(){
+  renderTabbar();
+  const main = document.getElementById('main');
+  if(currentTab==='dashboard') main.innerHTML = renderDashboard();
+  else if(currentTab==='jobs') main.innerHTML = renderJobs();
+  else if(currentTab==='expenses') main.innerHTML = renderExpenses();
+  else if(currentTab==='invoices') main.innerHTML = renderInvoices();
+  else if(currentTab==='time') main.innerHTML = renderTime();
+  else if(currentTab==='newjob') main.innerHTML = renderNewJobForm();
+  main.scrollTop = 0;
+  attachActionHandlers();
+}
+
+/* ---------------- ACTION HANDLERS ---------------- */
+function attachActionHandlers(){
+  document.querySelectorAll('[data-action]').forEach(el=>{
+    const evt = (el.tagName==='SELECT' || el.tagName==='INPUT') ? 'change' : 'click';
+    el.addEventListener(evt, onAction);
+  });
+  const rateInput = document.getElementById('rate-input');
+  if(rateInput){
+    rateInput.addEventListener('change', async ()=>{
+      state.rate = parseFloat(rateInput.value)||0;
+      await saveState();
+      render();
+      showToast('Hourly rate updated');
+    });
+  }
+  const timeStart = document.getElementById('time-start');
+  const timeFinish = document.getElementById('time-finish');
+  if(timeStart && timeFinish){
+    const updatePreview = ()=>{
+      const h = calcHours(timeStart.value, timeFinish.value);
+      document.getElementById('time-hours-preview').textContent = `Hours worked: ${h.toFixed(2)}`;
+    };
+    timeStart.addEventListener('input', updatePreview);
+    timeFinish.addEventListener('input', updatePreview);
+  }
+  const excelInput = document.getElementById('excel-file-input');
+  if(excelInput){
+    excelInput.addEventListener('change', ()=>{
+      if(excelInput.files && excelInput.files[0]){
+        importFromExcel(excelInput.files[0]);
+      }
+    });
+  }
+}
+
+async function onAction(e){
+  const action = e.currentTarget.dataset.action;
+  const id = e.currentTarget.dataset.id ? parseInt(e.currentTarget.dataset.id) : null;
+  const jobid = e.currentTarget.dataset.jobid ? parseInt(e.currentTarget.dataset.jobid) : null;
+
+  if(action==='add-expense'){ currentTab='expenses'; expenseFormJobId = jobid; render(); if(jobid) document.getElementById('exp-job').value=jobid; }
+  else if(action==='log-time'){ currentTab='time'; render(); if(jobid) document.getElementById('time-job').value=jobid; }
+  else if(action==='new-invoice'){ currentTab='invoices'; if(jobid) invoiceFormJobId = jobid; render(); }
+  else if(action==='new-job'){ currentTab='newjob'; render(); }
+
+  else if(action==='export-excel'){ exportToExcel(); }
+
+  else if(action==='import-excel-trigger'){ document.getElementById('excel-file-input').click(); }
+
+  else if(action==='select-invoice-job'){ invoiceFormJobId = parseInt(e.currentTarget.value); render(); }
+
+  else if(action==='toggle-job'){ expandedJob = expandedJob===id ? null : id; render(); }
+
+  else if(action==='change-status'){
+    const job = jobById(id);
+    job.status = e.currentTarget.value;
+    await saveState();
+    if(job.status==='Completed' && !jobHasInvoice(job.id)){
+      invoiceFormJobId = job.id;
+      currentTab = 'invoices';
+      expandedJob = null;
+      render();
+      showToast(`${job.no} completed — invoice ready below`);
+      return;
+    }
+    showToast('Status updated');
+    render();
+  }
+
+  else if(action==='change-pricing-type'){
+    const job = jobById(id);
+    job.pricingType = e.currentTarget.value;
+    await saveState();
+    render();
+  }
+
+  else if(action==='change-rate'){
+    const job = jobById(id);
+    job.rate = parseFloat(e.currentTarget.value)||0;
+    await saveState();
+    render();
+  }
+
+  else if(action==='change-fixed'){
+    const job = jobById(id);
+    job.fixedPrice = parseFloat(e.currentTarget.value)||0;
+    await saveState();
+    render();
+  }
+
+  else if(action==='toggle-newjob-pricing'){
+    newJobPricingType = e.currentTarget.value;
+    currentTab = 'newjob';
+    render();
+  }
+
+  else if(action==='submit-expense'){
+    const jobId = parseInt(document.getElementById('exp-job').value);
+    const date = document.getElementById('exp-date').value;
+    const category = document.getElementById('exp-category').value;
+    const desc = document.getElementById('exp-desc').value.trim();
+    const supplier = document.getElementById('exp-supplier').value.trim();
+    const amount = parseFloat(document.getElementById('exp-amount').value);
+    if(!desc || !amount || amount<=0){ showToast('Add a description and amount'); return; }
+    const newId = Math.max(0,...state.expenses.map(x=>x.id)) + 1;
+    state.expenses.push({id:newId, jobId, date, category, desc, supplier: supplier||null, cost:amount});
+    await saveState();
+    showToast('Expense saved');
+    render();
+  }
+
+  else if(action==='delete-expense'){
+    state.expenses = state.expenses.filter(x=>x.id!==id);
+    await saveState(); render(); showToast('Expense deleted');
+  }
+
+  else if(action==='submit-time'){
+    const jobId = parseInt(document.getElementById('time-job').value);
+    const date = document.getElementById('time-date').value;
+    const start = document.getElementById('time-start').value;
+    const finish = document.getElementById('time-finish').value;
+    const desc = document.getElementById('time-desc').value.trim();
+    const hours = calcHours(start, finish);
+    if(!start || !finish || hours<=0){ showToast('Enter a start and finish time'); return; }
+    const newId = Math.max(0,...state.time.map(x=>x.id)) + 1;
+    state.time.push({id:newId, jobId, date, start, finish, hours, desc});
+    await saveState();
+    showToast(`Time logged — ${hours.toFixed(2)}h`);
+    render();
+  }
+
+  else if(action==='delete-time'){
+    state.time = state.time.filter(x=>x.id!==id);
+    await saveState(); render(); showToast('Time entry deleted');
+  }
+
+  else if(action==='submit-invoice'){
+    const jobId = parseInt(document.getElementById('inv-job').value);
+    const no = document.getElementById('inv-no').value.trim();
+    const date = document.getElementById('inv-date').value;
+    const amount = parseFloat(document.getElementById('inv-amount').value);
+    if(!amount || amount<=0){ showToast('Enter an amount'); return; }
+    const job = jobById(jobId);
+    const newId = Math.max(0,...state.invoices.map(x=>x.id)) + 1;
+    // Snapshot line items at time of creation so the PDF stays accurate even if expenses change later
+    const lineItems = {
+      labourLabel: job.pricingType==='hourly' ? `Labour — ${jobHours(job.id).toFixed(1)} hrs @ ${money(job.rate||0)}/hr` : 'Job amount (fixed price)',
+      labourAmount: jobRevenue(job),
+      expenses: state.expenses.filter(e=>e.jobId===job.id).map(e=>({desc:e.desc, supplier:e.supplier, cost:e.cost}))
+    };
+    const invoice = {id:newId, no, jobId, jobNo:job.no, client:job.client, address:job.address, jobDesc:job.desc, date, amount, received:0, lineItems};
+    state.invoices.push(invoice);
+    invoiceFormJobId = null;
+    await saveState();
+    showToast('Invoice created');
+    render();
+    generateInvoicePDF(invoice);
+  }
+
+  else if(action==='download-pdf'){
+    const inv = state.invoices.find(x=>x.id===id);
+    generateInvoicePDF(inv);
+  }
+
+  else if(action==='mark-paid'){
+    const inv = state.invoices.find(x=>x.id===id);
+    inv.received = inv.amount;
+    await saveState(); render(); showToast('Payment recorded');
+  }
+
+  else if(action==='delete-invoice'){
+    state.invoices = state.invoices.filter(x=>x.id!==id);
+    await saveState(); render(); showToast('Invoice deleted');
+  }
+
+  else if(action==='submit-newjob'){
+    const client = document.getElementById('nj-client').value.trim();
+    const address = document.getElementById('nj-address').value.trim();
+    const desc = document.getElementById('nj-desc').value.trim();
+    const started = document.getElementById('nj-date').value;
+    const status = document.getElementById('nj-status').value;
+    const pricingType = document.getElementById('nj-pricing-type').value;
+    const rateEl = document.getElementById('nj-rate');
+    const fixedEl = document.getElementById('nj-fixed');
+    const rate = rateEl ? (parseFloat(rateEl.value)||0) : 0;
+    const fixedPrice = fixedEl ? (parseFloat(fixedEl.value)||0) : 0;
+    if(!client){ showToast('Enter a client name'); return; }
+    const newId = Math.max(0,...state.jobs.map(x=>x.id)) + 1;
+    const no = nextJobNo();
+    state.jobs.push({id:newId, no, client, address, desc, started, status, pricingType, rate, fixedPrice});
+    await saveState();
+    newJobPricingType = 'fixed';
+    currentTab = 'jobs';
+    showToast(`${no} created`);
+    render();
+  }
+}
+
+/* ---------------- INIT ---------------- */
+(async function init(){
+  await loadState();
+  render();
+})();
+</script>
+</body>
+</html>
