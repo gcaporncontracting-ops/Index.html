@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --ink:#1C2833;
@@ -326,12 +327,19 @@ let state = {
   jobs: [],
   expenses: [],
   time: [],
-  invoices: []
+  invoices: [],
+  googleClientId: '',
+  driveFolderId: ''
 };
 let currentTab = 'dashboard';
 let storageOk = true;
 let expandedJob = null;
 let confirmDeleteJobId = null;
+let driveAccessToken = null;
+let driveConnected = false;
+let driveUserEmail = null;
+
+const DRIVE_FOLDER_NAME = 'Invoices 26/27';
 
 const STORAGE_KEY = 'gcaporn-tracker-v1';
 
@@ -468,6 +476,86 @@ function showToast(msg){
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 
 /* ---------------- EXCEL EXPORT / IMPORT (source of truth) ---------------- */
+/* ---------------- GOOGLE DRIVE INTEGRATION ---------------- */
+let tokenClient = null;
+
+function initGoogleDrive(){
+  if(!state.googleClientId || typeof google === 'undefined' || !google.accounts) return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: state.googleClientId,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: async (resp)=>{
+      if(resp.error){ showToast('Google sign-in failed'); return; }
+      driveAccessToken = resp.access_token;
+      driveConnected = true;
+      showToast('Google Drive connected');
+      await ensureDriveFolder();
+      render();
+    }
+  });
+}
+
+function connectGoogleDrive(){
+  if(!state.googleClientId){ showToast('Paste your Google Client ID first'); return; }
+  if(!tokenClient) initGoogleDrive();
+  if(tokenClient) tokenClient.requestAccessToken({prompt: driveConnected ? '' : 'consent'});
+}
+
+async function ensureDriveFolder(){
+  if(state.driveFolderId) return state.driveFolderId;
+  try{
+    const q = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+      headers: {'Authorization': `Bearer ${driveAccessToken}`}
+    });
+    const searchData = await searchRes.json();
+    if(searchData.files && searchData.files.length){
+      state.driveFolderId = searchData.files[0].id;
+    } else {
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${driveAccessToken}`, 'Content-Type': 'application/json'},
+        body: JSON.stringify({name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder'})
+      });
+      const createData = await createRes.json();
+      state.driveFolderId = createData.id;
+    }
+    await saveState();
+    return state.driveFolderId;
+  }catch(e){
+    console.error('Drive folder error', e);
+    return null;
+  }
+}
+
+async function uploadInvoicePDFToDrive(blob, filename){
+  if(!driveConnected || !driveAccessToken){ return false; }
+  try{
+    const folderId = await ensureDriveFolder();
+    if(!folderId){ showToast('Could not find/create Drive folder'); return false; }
+    const metadata = {name: filename, parents: [folderId], mimeType: 'application/pdf'};
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+    form.append('file', blob);
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${driveAccessToken}`},
+      body: form
+    });
+    if(!res.ok){
+      if(res.status===401){ driveConnected=false; showToast('Google session expired — reconnect Drive'); }
+      else showToast('Drive upload failed — saved locally only');
+      return false;
+    }
+    showToast('Saved to Drive → Invoices 26/27');
+    return true;
+  }catch(e){
+    console.error('Drive upload error', e);
+    showToast('Drive upload failed — saved locally only');
+    return false;
+  }
+}
+
 function exportToExcel(){
   if(!window.XLSX){ showToast('Excel library failed to load'); return; }
 
@@ -608,7 +696,7 @@ function importFromExcel(file){
 }
 
 /* ---------------- PDF INVOICE GENERATION ---------------- */
-function generateInvoicePDF(invoice){
+async function generateInvoicePDF(invoice){
   if(!window.jspdf){ showToast('PDF library failed to load'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'a4'});
@@ -709,7 +797,13 @@ function generateInvoicePDF(invoice){
   doc.setFontSize(9); doc.setTextColor(120,120,120);
   doc.text('No GST is charged on this invoice.', marginX, y);
 
-  doc.save(`Invoice_${invoice.no}.pdf`);
+  const filename = `Invoice_${invoice.no}.pdf`;
+  doc.save(filename);
+
+  if(driveConnected){
+    const blob = doc.output('blob');
+    await uploadInvoicePDFToDrive(blob, filename);
+  }
 }
 
 /* ---------------- RENDER: TABS ---------------- */
@@ -774,6 +868,19 @@ function renderDashboard(){
       <button class="submit-btn" data-action="export-excel" style="margin-top:0;">Export to Excel</button>
       <button class="submit-btn" data-action="import-excel-trigger" style="margin-top:8px; background:var(--steel);">Import from Excel</button>
       <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="display:none;">
+    </div>
+    <div class="form-card" style="margin-bottom:18px;">
+      <h2>Google Drive — Invoice backup</h2>
+      <div style="font-size:12px; color:var(--steel); margin-bottom:10px; line-height:1.4;">When connected, every invoice PDF saves automatically into a folder called "${DRIVE_FOLDER_NAME}" in your Google Drive.</div>
+      ${!state.googleClientId ? `
+        <label>Google Client ID (one-time setup)</label>
+        <input type="text" id="google-client-id" placeholder="xxxxx.apps.googleusercontent.com">
+        <button class="submit-btn" data-action="save-google-client-id">Save Client ID</button>
+      ` : `
+        <div style="font-size:12.5px; margin-bottom:10px; font-weight:600; color:${driveConnected?'var(--green)':'var(--steel)'};">${driveConnected ? '✓ Connected to Google Drive' : 'Not connected yet'}</div>
+        <button class="submit-btn" data-action="connect-drive" style="margin-top:0;">${driveConnected ? 'Reconnect' : 'Connect Google Drive'}</button>
+        <button class="del" style="margin-top:10px; font-size:11px;" data-action="reset-google-client-id">Change Client ID</button>
+      `}
     </div>
     <div class="section-head"><h1 class="display" style="font-size:14px;">Recent money in / out</h1></div>
     ${ledger.length===0 ? `<div class="empty-state">No transactions yet.</div>` :
@@ -1156,6 +1263,27 @@ async function onAction(e){
 
   else if(action==='export-excel'){ exportToExcel(); }
 
+  else if(action==='save-google-client-id'){
+    const val = document.getElementById('google-client-id').value.trim();
+    if(!val){ showToast('Paste your Client ID first'); return; }
+    state.googleClientId = val;
+    await saveState();
+    initGoogleDrive();
+    render();
+    showToast('Client ID saved — now tap Connect Google Drive');
+  }
+
+  else if(action==='connect-drive'){ connectGoogleDrive(); }
+
+  else if(action==='reset-google-client-id'){
+    state.googleClientId = '';
+    state.driveFolderId = '';
+    driveConnected = false;
+    driveAccessToken = null;
+    await saveState();
+    render();
+  }
+
   else if(action==='import-excel-trigger'){ document.getElementById('excel-file-input').click(); }
 
   else if(action==='select-invoice-job'){ invoiceFormJobId = parseInt(e.currentTarget.value); render(); }
@@ -1285,12 +1413,12 @@ async function onAction(e){
     await saveState();
     showToast('Invoice created');
     render();
-    generateInvoicePDF(invoice);
+    await generateInvoicePDF(invoice);
   }
 
   else if(action==='download-pdf'){
     const inv = state.invoices.find(x=>x.id===id);
-    generateInvoicePDF(inv);
+    await generateInvoicePDF(inv);
   }
 
   else if(action==='mark-paid'){
@@ -1331,6 +1459,15 @@ async function onAction(e){
 (async function init(){
   await loadState();
   render();
+  if(state.googleClientId){
+    // Wait for the Google script to finish loading before initializing
+    const waitForGoogle = setInterval(()=>{
+      if(typeof google !== 'undefined' && google.accounts){
+        clearInterval(waitForGoogle);
+        initGoogleDrive();
+      }
+    }, 200);
+  }
 })();
 </script>
 </body>
