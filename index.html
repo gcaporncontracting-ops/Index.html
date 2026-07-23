@@ -329,7 +329,8 @@ let state = {
   time: [],
   invoices: [],
   googleClientId: '',
-  driveFolderId: ''
+  driveFolderId: '',
+  googleEverConnected: false
 };
 let currentTab = 'dashboard';
 let storageOk = true;
@@ -479,16 +480,24 @@ function todayISO(){ return new Date().toISOString().slice(0,10); }
 /* ---------------- GOOGLE DRIVE INTEGRATION ---------------- */
 let tokenClient = null;
 
+let silentReauthInProgress = false;
+
 function initGoogleDrive(){
   if(!state.googleClientId || typeof google === 'undefined' || !google.accounts) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: state.googleClientId,
     scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send',
     callback: async (resp)=>{
-      if(resp.error){ showToast('Google sign-in failed'); return; }
+      const wasSilent = silentReauthInProgress;
+      silentReauthInProgress = false;
+      if(resp.error){
+        if(!wasSilent) showToast('Google sign-in failed');
+        return;
+      }
       driveAccessToken = resp.access_token;
       driveConnected = true;
-      showToast('Google Drive connected');
+      if(!state.googleEverConnected){ state.googleEverConnected = true; await saveState(); }
+      if(!wasSilent) showToast('Google Drive connected');
       await ensureDriveFolder();
       render();
     }
@@ -499,6 +508,33 @@ function connectGoogleDrive(){
   if(!state.googleClientId){ showToast('Paste your Google Client ID first'); return; }
   if(!tokenClient) initGoogleDrive();
   if(tokenClient) tokenClient.requestAccessToken({prompt: driveConnected ? '' : 'consent'});
+}
+
+// Silently tries to reconnect in the background (no button click, no consent screen)
+// using the browser's existing Google sign-in — used on page load and to auto-renew
+// an expired token. Only works if the user has connected before and is still signed
+// into Google in this browser.
+function silentGoogleReconnect(){
+  if(!tokenClient || !state.googleClientId) return;
+  silentReauthInProgress = true;
+  tokenClient.requestAccessToken({prompt:''});
+}
+
+// Like silentGoogleReconnect, but returns a promise so a failed API call can await
+// a fresh token and retry itself, without disturbing the main tokenClient.callback.
+function requestFreshGoogleToken(){
+  return new Promise((resolve)=>{
+    if(!tokenClient){ resolve(false); return; }
+    const originalCallback = tokenClient.callback;
+    tokenClient.callback = (resp)=>{
+      tokenClient.callback = originalCallback;
+      if(resp.error){ resolve(false); return; }
+      driveAccessToken = resp.access_token;
+      driveConnected = true;
+      resolve(true);
+    };
+    tokenClient.requestAccessToken({prompt:''});
+  });
 }
 
 async function ensureDriveFolder(){
@@ -534,14 +570,21 @@ async function uploadInvoicePDFToDrive(blob, filename){
     const folderId = await ensureDriveFolder();
     if(!folderId){ showToast('Could not find/create Drive folder'); return false; }
     const metadata = {name: filename, parents: [folderId], mimeType: 'application/pdf'};
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
-    form.append('file', blob);
-    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-      method: 'POST',
-      headers: {'Authorization': `Bearer ${driveAccessToken}`},
-      body: form
-    });
+    const doUpload = ()=>{
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+      form.append('file', blob);
+      return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${driveAccessToken}`},
+        body: form
+      });
+    };
+    let res = await doUpload();
+    if(res.status===401){
+      const refreshed = await requestFreshGoogleToken();
+      if(refreshed) res = await doUpload();
+    }
     if(!res.ok){
       if(res.status===401){ driveConnected=false; showToast('Google session expired — reconnect Drive'); }
       else showToast('Drive upload failed — saved locally only');
@@ -588,11 +631,16 @@ async function sendInvoiceEmailToClient(invoice, pdfBlob, filename){
       `${pdfBase64}\r\n` +
       `--${boundary}--`;
     const raw = btoa(unescape(encodeURIComponent(mimeMessage))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    const doSend = ()=> fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
       headers: {'Authorization': `Bearer ${driveAccessToken}`, 'Content-Type': 'application/json'},
       body: JSON.stringify({raw})
     });
+    let res = await doSend();
+    if(res.status===401){
+      const refreshed = await requestFreshGoogleToken();
+      if(refreshed) res = await doSend();
+    }
     if(!res.ok){
       if(res.status===401){ driveConnected=false; showToast('Google session expired — reconnect above'); }
       else if(res.status===403){ showToast('Reconnect Google above — email sending needs a new permission'); }
@@ -944,7 +992,7 @@ function renderDashboard(){
     </div>
     <div class="form-card" style="margin-bottom:18px;">
       <h2>Google Drive & Email</h2>
-      <div style="font-size:12px; color:var(--steel); margin-bottom:10px; line-height:1.4;">When connected, every invoice PDF saves automatically into a folder called "${DRIVE_FOLDER_NAME}" in your Google Drive — and if you add a customer email on an invoice, it's emailed to them straight away.</div>
+      <div style="font-size:12px; color:var(--steel); margin-bottom:10px; line-height:1.4;">When connected, every invoice PDF saves automatically into a folder called "${DRIVE_FOLDER_NAME}" in your Google Drive — and if you add a customer email on an invoice, it's emailed to them straight away. Once connected, this browser will try to reconnect quietly by itself on future visits — no need to click Connect every time.</div>
       ${driveConnected ? `<div style="font-size:11px; color:var(--steel); margin-bottom:10px; font-style:italic;">If email sending doesn't work, hit Reconnect below — it needs one extra permission.</div>` : ''}
       ${!state.googleClientId ? `
         <label>Google Client ID (one-time setup)</label>
@@ -1559,6 +1607,11 @@ async function onAction(e){
       if(typeof google !== 'undefined' && google.accounts){
         clearInterval(waitForGoogle);
         initGoogleDrive();
+        if(state.googleEverConnected){
+          // Try to reconnect quietly in the background — no click needed if
+          // this browser is still signed into the same Google account.
+          silentGoogleReconnect();
+        }
       }
     }, 200);
   }
