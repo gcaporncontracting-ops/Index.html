@@ -486,7 +486,7 @@ function initGoogleDrive(){
   if(!state.googleClientId || typeof google === 'undefined' || !google.accounts) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: state.googleClientId,
-    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send',
+    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events',
     callback: async (resp)=>{
       const wasSilent = silentReauthInProgress;
       silentReauthInProgress = false;
@@ -507,7 +507,11 @@ function initGoogleDrive(){
 function connectGoogleDrive(){
   if(!state.googleClientId){ showToast('Paste your Google Client ID first'); return; }
   if(!tokenClient) initGoogleDrive();
-  if(tokenClient) tokenClient.requestAccessToken({prompt: driveConnected ? '' : 'consent'});
+  // Always request full consent here — this is a manual, user-initiated click, so it's
+  // the right moment to (re)grant any scopes (like Gmail send) that weren't approved yet.
+  // Automatic background renewal uses silentGoogleReconnect() / requestFreshGoogleToken()
+  // instead, which only ask for scopes already granted.
+  if(tokenClient) tokenClient.requestAccessToken({prompt: 'consent'});
 }
 
 // Silently tries to reconnect in the background (no button click, no consent screen)
@@ -652,6 +656,45 @@ async function sendInvoiceEmailToClient(invoice, pdfBlob, filename){
   }catch(e){
     console.error('Gmail send error', e);
     showToast('Email failed to send — PDF was still saved');
+    return false;
+  }
+}
+
+async function createCalendarEventForJob(job){
+  if(!driveConnected || !driveAccessToken) return false;
+  try{
+    const startDate = job.started || todayISO();
+    const endDateObj = new Date(startDate + 'T00:00:00');
+    endDateObj.setDate(endDateObj.getDate() + 1);
+    const endDate = endDateObj.toISOString().slice(0,10);
+    const eventBody = {
+      summary: `${job.no} — ${job.client}`,
+      location: job.address || '',
+      description: job.desc || '',
+      start: {date: startDate},
+      end: {date: endDate}
+    };
+    const doCreate = ()=> fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${driveAccessToken}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify(eventBody)
+    });
+    let res = await doCreate();
+    if(res.status===401){
+      const refreshed = await requestFreshGoogleToken();
+      if(refreshed) res = await doCreate();
+    }
+    if(!res.ok){
+      if(res.status===401){ driveConnected=false; showToast('Google session expired — reconnect above'); }
+      else if(res.status===403){ showToast('Reconnect Google above — Calendar needs a new permission'); }
+      else showToast('Job saved, but Calendar event failed');
+      return false;
+    }
+    showToast(`${job.no} added to Google Calendar`);
+    return true;
+  }catch(e){
+    console.error('Calendar event error', e);
+    showToast('Job saved, but Calendar event failed');
     return false;
   }
 }
@@ -991,9 +1034,9 @@ function renderDashboard(){
       <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="display:none;">
     </div>
     <div class="form-card" style="margin-bottom:18px;">
-      <h2>Google Drive & Email</h2>
-      <div style="font-size:12px; color:var(--steel); margin-bottom:10px; line-height:1.4;">When connected, every invoice PDF saves automatically into a folder called "${DRIVE_FOLDER_NAME}" in your Google Drive — and if you add a customer email on an invoice, it's emailed to them straight away. Once connected, this browser will try to reconnect quietly by itself on future visits — no need to click Connect every time.</div>
-      ${driveConnected ? `<div style="font-size:11px; color:var(--steel); margin-bottom:10px; font-style:italic;">If email sending doesn't work, hit Reconnect below — it needs one extra permission.</div>` : ''}
+      <h2>Google Drive, Email & Calendar</h2>
+      <div style="font-size:12px; color:var(--steel); margin-bottom:10px; line-height:1.4;">When connected: every invoice PDF saves automatically into a folder called "${DRIVE_FOLDER_NAME}" in your Google Drive, an invoice is emailed straight away if you add a customer email, and every new job gets added to your Google Calendar on its start date. Once connected, this browser will try to reconnect quietly by itself on future visits — no need to click Connect every time.</div>
+      ${driveConnected ? `<div style="font-size:11px; color:var(--steel); margin-bottom:10px; font-style:italic;">If email or calendar features don't work, hit Reconnect below — they need extra permissions.</div>` : ''}
       ${!state.googleClientId ? `
         <label>Google Client ID (one-time setup)</label>
         <input type="text" id="google-client-id" placeholder="xxxxx.apps.googleusercontent.com">
@@ -1588,12 +1631,16 @@ async function onAction(e){
     if(!client){ showToast('Enter a client name'); return; }
     const newId = Math.max(0,...state.jobs.map(x=>x.id)) + 1;
     const no = nextJobNo();
-    state.jobs.push({id:newId, no, client, address, desc, started, status, pricingType, rate, fixedPrice});
+    const newJob = {id:newId, no, client, address, desc, started, status, pricingType, rate, fixedPrice};
+    state.jobs.push(newJob);
     await saveState();
     newJobPricingType = 'fixed';
     currentTab = 'jobs';
     showToast(`${no} created`);
     render();
+    if(driveConnected){
+      await createCalendarEventForJob(newJob);
+    }
   }
 }
 
