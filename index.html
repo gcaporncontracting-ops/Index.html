@@ -347,16 +347,15 @@ function seedData(){
   const J = (id,no,client,address,desc,started,status,pricingType,rate,fixedPrice)=>({id,no,client,address,desc,started,status,pricingType,rate,fixedPrice});
   state.jobs = [
     J(1,'J001','Rhys Coleman','14 Sherbourne St, Cockburn Central','Vacuum out roof insulation','2026-07-06','Completed','fixed',0,250),
-    J(2,'J002','Rhiannon Ivey','33 Hotham St, Bayswater','Roof pressure cleaning + hot water washer hire','2026-07-17','Completed','fixed',0,2000),
+    J(2,'J002','Rhiannon Ivey','33 Hotham St, Bayswater','Roof pressure cleaning + hot water washer hire','2026-07-17','Completed','fixed',0,1000),
     J(3,'J003','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Bathroom exhaust vent install + roof flume through tiled roof','2026-07-17','Completed','fixed',0,800),
     J(4,'J004','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Ceiling vacuum extraction and re-strapping plaster glass ceiling','2026-07-02','Completed','fixed',0,600),
-    J(5,'J005','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Remove gutters/fascia, reinstall new fascia+soffit, refix sub-fascia — south side','2026-07-04','Completed','fixed',0,2200),
-    J(6,'J006','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Remove roller shutters and reinstall when required','2026-07-07','Completed','fixed',0,300),
-    J(7,'J007','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Window restore','2026-07-02','In Progress','fixed',0,0),
-    J(8,'J008','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Eaves replacement','2026-07-08','In Progress','fixed',0,0),
-    J(9,'J009','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Wall chase patching (plaster/render repair)','2026-07-09','In Progress','fixed',0,0),
-    J(10,'J010','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Ridge repair','2026-07-09','In Progress','fixed',0,0),
-    J(11,'J011','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Flue installation','2026-07-15','In Progress','fixed',0,0),
+    J(5,'J006','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Remove roller shutters and reinstall when required','2026-07-07','Completed','fixed',0,300),
+    J(6,'J007','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Window restore','2026-07-02','In Progress','fixed',0,0),
+    J(7,'J009','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Wall chase patching (plaster/render repair)','2026-07-09','Completed','fixed',0,200),
+    J(8,'J010','33 Hotham St, Bayswater','33 Hotham St, Bayswater','Ridge repair','2026-07-09','Completed','fixed',0,150),
+    J(9,'J012','Rusty','4 Pusey Road, Cockburn Central','Build tint machine','2026-07-22','In Progress','hourly',55,0),
+    J(10,'J011','Rhiannon Ivey','33 Hotham St, Bayswater','Change washing machine taps','2026-07-22','Completed','fixed',0,50),
   ];
   const E = (id,jobId,date,category,desc,supplier,cost)=>({id,jobId,date,category,desc,supplier,cost});
   state.expenses = [
@@ -364,29 +363,30 @@ function seedData(){
     E(2,1,'2026-07-06','Materials','Hose for extraction',null,39.42),
     E(3,1,'2026-07-06','Materials','Respirator (3M half-face) + duct tape','Bunnings Cockburn Central',105.48),
     E(4,1,'2026-07-06','Materials','AGI pipe coupling + AGI pipe stretch','Bunnings Cockburn Central',39.42),
-    E(5,7,'2026-07-02','Materials','Spray metalshield x2 + PVC jointer moulding x2','Bunnings Innaloo',47.60),
-    E(6,7,'2026-07-08','Materials','Spray paint, caustic soda, shower head','Bunnings Bayswater',66.13),
-    E(7,7,'2026-07-09','Materials','Sander, nailer, hinges x6, brad nails','Bunnings Bayswater',233.20),
-    E(8,7,'2026-07-10','Materials','Mini rollers, cleaner, car care items, glue, masking tape, conduit','Bunnings Bayswater',102.16),
-    E(9,8,'2026-07-08','Materials','Multi tool blades x2 (Diablo Starlock)','Bunnings Bayswater',158.56),
-    E(10,8,'2026-07-09','Materials','Line level','Bunnings Bayswater',3.60),
-    E(11,8,'2026-07-09','Materials','PVC jointer moulding x2 + Hardiflex cladding x6','Bunnings Bayswater',239.81),
-    E(12,8,'2026-07-15','Materials','Compass, unitie brackets x5, ruler','Bunnings Bayswater',24.37),
-    E(13,9,'2026-07-09','Materials','Cement + sand plastering',"Bunnings O'Connor",23.11),
-    E(14,10,'2026-07-09','Materials','Selleys pointing compound + pointing trowel','Bunnings Melville',62.35),
-    E(15,11,'2026-07-15','Materials','Lead sheet squares','Bunnings Bayswater',40.18),
+    E(5,6,'2026-07-02','Materials','Spray metalshield x2 + PVC jointer moulding x2','Bunnings Innaloo',47.60),
+    E(6,6,'2026-07-08','Materials','Spray paint, caustic soda, shower head','Bunnings Bayswater',66.13),
+    E(7,6,'2026-07-09','Materials','Sander, nailer, hinges x6, brad nails','Bunnings Bayswater',233.20),
+    E(8,6,'2026-07-10','Materials','Mini rollers, cleaner, car care items, glue, masking tape, conduit','Bunnings Bayswater',102.16),
+    E(9,7,'2026-07-09','Materials','Cement + sand plastering',"Bunnings O'Connor",23.11),
+    E(10,8,'2026-07-09','Materials','Selleys pointing compound + pointing trowel','Bunnings Melville',62.35),
+    E(11,3,'2026-07-22','Materials','Lead',null,42.00),
+    E(12,2,'2026-07-22','Subcontractor','Machine hire and labour','Wilson Neves',1000.00),
+    E(13,10,'2026-07-22','Materials','Washing machine taps',null,25.00),
   ];
   const I = (id,no,jobId,client,date,amount,received)=>({id,no,jobId,client,date,amount,received});
   state.invoices = [
     I(1,'J001',1,'Rhys Coleman','2026-07-06',250,250),
-    I(2,'J002-A',2,'Rhiannon Ivey','2026-07-10',1000,1000),
-    I(3,'J002-B',2,'Rhiannon Ivey','2026-07-17',1000,1000),
-    I(4,'J003',3,'33 Hotham St, Bayswater','2026-07-17',800,0),
-    I(5,'J004',4,'33 Hotham St, Bayswater','2026-07-02',600,0),
-    I(6,'J005',5,'33 Hotham St, Bayswater','2026-07-04',2200,0),
-    I(7,'J006',6,'33 Hotham St, Bayswater','2026-07-07',300,0),
+    I(2,'J004',4,'33 Hotham St, Bayswater','2026-07-02',600,0),
+    I(3,'J002',2,'Rhiannon Ivey','2026-07-22',1000,1000),
+    I(4,'J006',5,'33 Hotham St, Bayswater','2026-07-08',300,0),
+    I(5,'J010',8,'33 Hotham St, Bayswater','2026-07-22',200,0),
+    I(6,'J011',10,'Rhiannon Ivey','2026-07-22',50,50),
+    I(7,'J003',3,'33 Hotham St, Bayswater','2026-07-15',800,0),
+    I(8,'J009',7,'33 Hotham St, Bayswater','2026-07-22',100,0),
   ];
-  state.time = [];
+  state.time = [
+    {id:1, jobId:9, date:'2026-07-21', start:'13:45', finish:'16:15', hours:2.5, desc:''},
+  ];
 }
 
 async function loadState(){
@@ -483,7 +483,7 @@ function initGoogleDrive(){
   if(!state.googleClientId || typeof google === 'undefined' || !google.accounts) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: state.googleClientId,
-    scope: 'https://www.googleapis.com/auth/drive.file',
+    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send',
     callback: async (resp)=>{
       if(resp.error){ showToast('Google sign-in failed'); return; }
       driveAccessToken = resp.access_token;
@@ -552,6 +552,58 @@ async function uploadInvoicePDFToDrive(blob, filename){
   }catch(e){
     console.error('Drive upload error', e);
     showToast('Drive upload failed — saved locally only');
+    return false;
+  }
+}
+
+function blobToBase64(blob){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onloadend = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function sendInvoiceEmailToClient(invoice, pdfBlob, filename){
+  if(!driveConnected || !driveAccessToken){ showToast('Connect Google above to send email'); return false; }
+  if(!invoice.clientEmail){ return false; }
+  try{
+    const pdfBase64 = await blobToBase64(pdfBlob);
+    const subject = `Invoice ${invoice.no} from G. Caporn Contracting`;
+    const bodyText = `Hi ${invoice.client || ''},\r\n\r\nPlease find attached invoice ${invoice.no}, dated ${fmtDate(invoice.date)}, for ${money(invoice.amount)}.\r\n\r\nThanks,\r\nG. Caporn Contracting`;
+    const boundary = 'invoice_' + Date.now();
+    const mimeMessage =
+      `To: ${invoice.clientEmail}\r\n` +
+      `Subject: ${subject}\r\n` +
+      `MIME-Version: 1.0\r\n` +
+      `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: text/plain; charset="UTF-8"\r\n\r\n` +
+      `${bodyText}\r\n\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: application/pdf\r\n` +
+      `Content-Transfer-Encoding: base64\r\n` +
+      `Content-Disposition: attachment; filename="${filename}"\r\n\r\n` +
+      `${pdfBase64}\r\n` +
+      `--${boundary}--`;
+    const raw = btoa(unescape(encodeURIComponent(mimeMessage))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${driveAccessToken}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({raw})
+    });
+    if(!res.ok){
+      if(res.status===401){ driveConnected=false; showToast('Google session expired — reconnect above'); }
+      else if(res.status===403){ showToast('Reconnect Google above — email sending needs a new permission'); }
+      else showToast('Email failed to send — PDF was still saved');
+      return false;
+    }
+    showToast(`Invoice emailed to ${invoice.clientEmail}`);
+    return true;
+  }catch(e){
+    console.error('Gmail send error', e);
+    showToast('Email failed to send — PDF was still saved');
     return false;
   }
 }
@@ -696,8 +748,8 @@ function importFromExcel(file){
 }
 
 /* ---------------- PDF INVOICE GENERATION ---------------- */
-async function generateInvoicePDF(invoice){
-  if(!window.jspdf){ showToast('PDF library failed to load'); return; }
+function buildInvoiceDoc(invoice){
+  if(!window.jspdf){ showToast('PDF library failed to load'); return null; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'a4'});
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -797,13 +849,34 @@ async function generateInvoicePDF(invoice){
   doc.setFontSize(9); doc.setTextColor(120,120,120);
   doc.text('No GST is charged on this invoice.', marginX, y);
 
+  return doc;
+}
+
+async function generateInvoicePDF(invoice){
+  const doc = buildInvoiceDoc(invoice);
+  if(!doc) return;
   const filename = `Invoice_${invoice.no}.pdf`;
   doc.save(filename);
 
   if(driveConnected){
     const blob = doc.output('blob');
     await uploadInvoicePDFToDrive(blob, filename);
+    if(invoice.clientEmail){
+      await sendInvoiceEmailToClient(invoice, blob, filename);
+    }
+  } else if(invoice.clientEmail){
+    showToast('Connect Google above to email this invoice automatically');
   }
+}
+
+async function emailInvoiceNow(invoice){
+  if(!invoice.clientEmail){ showToast('Enter a customer email first'); return; }
+  if(!driveConnected){ showToast('Connect Google above to send email'); return; }
+  const doc = buildInvoiceDoc(invoice);
+  if(!doc) return;
+  const filename = `Invoice_${invoice.no}.pdf`;
+  const blob = doc.output('blob');
+  await sendInvoiceEmailToClient(invoice, blob, filename);
 }
 
 /* ---------------- RENDER: TABS ---------------- */
@@ -870,8 +943,9 @@ function renderDashboard(){
       <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="display:none;">
     </div>
     <div class="form-card" style="margin-bottom:18px;">
-      <h2>Google Drive — Invoice backup</h2>
-      <div style="font-size:12px; color:var(--steel); margin-bottom:10px; line-height:1.4;">When connected, every invoice PDF saves automatically into a folder called "${DRIVE_FOLDER_NAME}" in your Google Drive.</div>
+      <h2>Google Drive & Email</h2>
+      <div style="font-size:12px; color:var(--steel); margin-bottom:10px; line-height:1.4;">When connected, every invoice PDF saves automatically into a folder called "${DRIVE_FOLDER_NAME}" in your Google Drive — and if you add a customer email on an invoice, it's emailed to them straight away.</div>
+      ${driveConnected ? `<div style="font-size:11px; color:var(--steel); margin-bottom:10px; font-style:italic;">If email sending doesn't work, hit Reconnect below — it needs one extra permission.</div>` : ''}
       ${!state.googleClientId ? `
         <label>Google Client ID (one-time setup)</label>
         <input type="text" id="google-client-id" placeholder="xxxxx.apps.googleusercontent.com">
@@ -1077,6 +1151,9 @@ function renderInvoices(){
       </div>
       <label>Amount ($) — no GST charged</label>
       <input type="number" step="0.01" id="inv-amount" value="${total.toFixed(2)}">
+      <label>Customer email (optional)</label>
+      <input type="email" id="inv-email" placeholder="customer@email.com">
+      <div style="font-size:11px; color:var(--steel); margin-top:-6px; margin-bottom:10px;">If entered, the invoice PDF is emailed to this address as soon as it's created${driveConnected?'':' (connect Google below first)'}.</div>
       <button class="submit-btn" data-action="submit-invoice" data-jobid="${selJob.id}">Create Invoice + PDF</button>
     </div>`;
   }
@@ -1101,6 +1178,11 @@ function renderInvoices(){
           <div class="invoice-line" style="margin-top:8px;"><span>Received</span><span class="amt mono" style="color:var(--green)">${money(i.received)}</span></div>
           ${!paid ? `<div class="invoice-line"><span>Outstanding</span><span class="amt mono" style="color:var(--rust)">${money(outstanding)}</span></div>` : ''}
           <button class="submit-btn" style="margin-top:12px; background:var(--steel); color:#fff;" data-action="download-pdf" data-id="${i.id}">Download PDF</button>
+          <div style="margin-top:10px;">
+            <label style="font-size:11px;">Customer email</label>
+            <input type="email" id="inv-email-${i.id}" value="${i.clientEmail||''}" placeholder="customer@email.com">
+            <button class="submit-btn" style="margin-top:6px; background:var(--steel); color:#fff;" data-action="email-invoice" data-id="${i.id}">Email invoice to customer</button>
+          </div>
           ${!paid ? `<button class="submit-btn" style="margin-top:8px;" data-action="mark-paid" data-id="${i.id}">Record full payment</button>` : ''}
           <button class="del" style="margin-top:10px;" data-action="delete-invoice" data-id="${i.id}">Delete invoice</button>
         </div>`;
@@ -1398,6 +1480,7 @@ async function onAction(e){
     const no = document.getElementById('inv-no').value.trim();
     const date = document.getElementById('inv-date').value;
     const amount = parseFloat(document.getElementById('inv-amount').value);
+    const clientEmail = document.getElementById('inv-email').value.trim();
     if(!amount || amount<=0){ showToast('Enter an amount'); return; }
     const job = jobById(jobId);
     const newId = Math.max(0,...state.invoices.map(x=>x.id)) + 1;
@@ -1407,7 +1490,7 @@ async function onAction(e){
       labourAmount: jobRevenue(job),
       expenses: state.expenses.filter(e=>e.jobId===job.id).map(e=>({desc:e.desc, supplier:e.supplier, cost:e.cost}))
     };
-    const invoice = {id:newId, no, jobId, jobNo:job.no, client:job.client, address:job.address, jobDesc:job.desc, date, amount, received:0, lineItems};
+    const invoice = {id:newId, no, jobId, jobNo:job.no, client:job.client, address:job.address, jobDesc:job.desc, date, amount, received:0, lineItems, clientEmail: clientEmail || null};
     state.invoices.push(invoice);
     invoiceFormJobId = null;
     await saveState();
@@ -1419,6 +1502,17 @@ async function onAction(e){
   else if(action==='download-pdf'){
     const inv = state.invoices.find(x=>x.id===id);
     await generateInvoicePDF(inv);
+  }
+
+  else if(action==='email-invoice'){
+    const inv = state.invoices.find(x=>x.id===id);
+    const emailInput = document.getElementById(`inv-email-${id}`);
+    const emailVal = emailInput ? emailInput.value.trim() : '';
+    if(!emailVal){ showToast('Enter a customer email first'); return; }
+    inv.clientEmail = emailVal;
+    await saveState();
+    await emailInvoiceNow(inv);
+    render();
   }
 
   else if(action==='mark-paid'){
