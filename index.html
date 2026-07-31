@@ -340,6 +340,9 @@ let currentTab = 'dashboard';
 let storageOk = true;
 let expandedJob = null;
 let confirmDeleteJobId = null;
+let editingJobId = null;
+let editingExpenseId = null;
+let editingTimeId = null;
 let driveAccessToken = null;
 let driveConnected = false;
 let driveUserEmail = null;
@@ -1108,6 +1111,21 @@ function renderJobs(){
         </div>
         ${isOpen ? `
         <div class="job-detail">
+          ${editingJobId===j.id ? `
+            <h3 style="margin-top:0;">Edit job details</h3>
+            <label>Client</label>
+            <input type="text" id="edit-job-client-${j.id}" value="${j.client||''}">
+            <label>Address</label>
+            <input type="text" id="edit-job-address-${j.id}" value="${j.address||''}">
+            <label>Description</label>
+            <input type="text" id="edit-job-desc-${j.id}" value="${j.desc||''}">
+            <label>Started</label>
+            <input type="date" id="edit-job-started-${j.id}" value="${j.started||''}">
+            <button class="submit-btn" style="margin-top:8px;" data-action="save-job-details" data-id="${j.id}">Save details</button>
+            <button class="submit-btn" style="margin-top:8px; background:var(--steel);" data-action="cancel-edit-job-details">Cancel</button>
+          ` : `
+            <button class="submit-btn" style="margin-top:12px; background:var(--steel); color:#fff;" data-action="edit-job-details" data-id="${j.id}">Edit client / address / description</button>
+          `}
           <label style="margin-top:12px;">Status</label>
           <select class="status-select" data-action="change-status" data-id="${j.id}">
             ${['Not Started','In Progress','On Hold','Completed'].map(s=>`<option value="${s}" ${s===j.status?'selected':''}>${s}</option>`).join('')}
@@ -1196,6 +1214,33 @@ function renderExpenses(){
       sorted.map(e=>{
         const j = jobById(e.jobId);
         const jobLabel = j ? j.no : (e.jobId===null ? 'Consumables' : (e.orphanedFrom ? `Consumables (was ${e.orphanedFrom})` : 'Consumables'));
+        if(editingExpenseId===e.id){
+          return `
+          <div class="form-card">
+            <h2>Edit expense</h2>
+            <label>Job</label>
+            <select id="edit-exp-job-${e.id}">
+              <option value="consumables" ${e.jobId===null?'selected':''}>Consumables (not job-specific)</option>
+              ${state.jobs.map(job=>`<option value="${job.id}" ${e.jobId===job.id?'selected':''}>${job.no} — ${job.client}</option>`).join('')}
+            </select>
+            <div class="row2">
+              <div><label>Date</label><input type="date" id="edit-exp-date-${e.id}" value="${e.date}"></div>
+              <div><label>Category</label>
+                <select id="edit-exp-category-${e.id}">
+                  ${['Materials','Fuel','Tool Hire','Equipment','Subcontractor','Permits/Fees','Waste Disposal','Other'].map(c=>`<option value="${c}" ${c===e.category?'selected':''}>${c}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <label>Description</label>
+            <input type="text" id="edit-exp-desc-${e.id}" value="${e.desc||''}">
+            <label>Supplier (optional)</label>
+            <input type="text" id="edit-exp-supplier-${e.id}" value="${e.supplier||''}">
+            <label>Amount — inc GST ($)</label>
+            <input type="number" step="0.01" id="edit-exp-amount-${e.id}" value="${e.cost}">
+            <button class="submit-btn" data-action="save-expense" data-id="${e.id}">Save changes</button>
+            <button class="submit-btn" style="margin-top:8px; background:var(--steel);" data-action="cancel-edit-expense">Cancel</button>
+          </div>`;
+        }
         return `
         <div class="list-row">
           <div class="left">
@@ -1204,6 +1249,7 @@ function renderExpenses(){
           </div>
           <div class="right">
             <div class="amt">${money(e.cost)}</div>
+            <button class="del" style="background:var(--steel); color:#fff; margin-bottom:4px;" data-action="edit-expense" data-id="${e.id}">Edit</button>
             <button class="del" data-action="delete-expense" data-id="${e.id}">Delete</button>
           </div>
         </div>`;
@@ -1329,6 +1375,26 @@ function renderTime(){
     ${sorted.length===0 ? `<div class="empty-state"><div class="display">No time logged yet</div>Log your first entry above.</div>` :
       sorted.map(t=>{
         const j = jobById(t.jobId);
+        if(editingTimeId===t.id){
+          return `
+          <div class="form-card">
+            <h2>Edit time entry</h2>
+            <label>Job</label>
+            <select id="edit-time-job-${t.id}">
+              ${state.jobs.map(job=>`<option value="${job.id}" ${t.jobId===job.id?'selected':''}>${job.no} — ${job.client}</option>`).join('')}
+            </select>
+            <label>Date</label>
+            <input type="date" id="edit-time-date-${t.id}" value="${t.date}">
+            <div class="row2">
+              <div><label>Started</label><input type="time" id="edit-time-start-${t.id}" value="${t.start||''}"></div>
+              <div><label>Finished</label><input type="time" id="edit-time-finish-${t.id}" value="${t.finish||''}"></div>
+            </div>
+            <label>What did you do?</label>
+            <input type="text" id="edit-time-desc-${t.id}" value="${t.desc||''}">
+            <button class="submit-btn" data-action="save-time" data-id="${t.id}">Save changes</button>
+            <button class="submit-btn" style="margin-top:8px; background:var(--steel);" data-action="cancel-edit-time">Cancel</button>
+          </div>`;
+        }
         return `
         <div class="list-row">
           <div class="left">
@@ -1337,6 +1403,7 @@ function renderTime(){
           </div>
           <div class="right">
             <div class="amt">${t.hours}h</div>
+            <button class="del" style="background:var(--steel); color:#fff; margin-bottom:4px;" data-action="edit-time" data-id="${t.id}">Edit</button>
             <button class="del" data-action="delete-time" data-id="${t.id}">Delete</button>
           </div>
         </div>`;
@@ -1470,7 +1537,7 @@ async function onAction(e){
 
   else if(action==='select-invoice-job'){ invoiceFormJobId = parseInt(e.currentTarget.value); render(); }
 
-  else if(action==='toggle-job'){ expandedJob = expandedJob===id ? null : id; confirmDeleteJobId=null; render(); }
+  else if(action==='toggle-job'){ expandedJob = expandedJob===id ? null : id; confirmDeleteJobId=null; editingJobId=null; render(); }
 
   else if(action==='delete-job-prompt'){ confirmDeleteJobId = id; render(); }
 
@@ -1525,6 +1592,24 @@ async function onAction(e){
     const job = jobById(id);
     job.fixedPrice = parseFloat(e.currentTarget.value)||0;
     await saveState();
+    render();
+  }
+
+  else if(action==='edit-job-details'){ editingJobId = id; render(); }
+
+  else if(action==='cancel-edit-job-details'){ editingJobId = null; render(); }
+
+  else if(action==='save-job-details'){
+    const job = jobById(id);
+    const client = document.getElementById(`edit-job-client-${id}`).value.trim();
+    const address = document.getElementById(`edit-job-address-${id}`).value.trim();
+    const desc = document.getElementById(`edit-job-desc-${id}`).value.trim();
+    const started = document.getElementById(`edit-job-started-${id}`).value;
+    if(!client){ showToast('Client name can\'t be empty'); return; }
+    job.client = client; job.address = address; job.desc = desc; job.started = started;
+    editingJobId = null;
+    await saveState();
+    showToast('Job details updated');
     render();
   }
 
@@ -1583,6 +1668,28 @@ async function onAction(e){
     await saveState(); render(); showToast('Expense deleted');
   }
 
+  else if(action==='edit-expense'){ editingExpenseId = id; render(); }
+
+  else if(action==='cancel-edit-expense'){ editingExpenseId = null; render(); }
+
+  else if(action==='save-expense'){
+    const exp = state.expenses.find(x=>x.id===id);
+    const rawJobVal = document.getElementById(`edit-exp-job-${id}`).value;
+    exp.jobId = rawJobVal==='consumables' ? null : parseInt(rawJobVal);
+    exp.date = document.getElementById(`edit-exp-date-${id}`).value;
+    exp.category = document.getElementById(`edit-exp-category-${id}`).value;
+    exp.desc = document.getElementById(`edit-exp-desc-${id}`).value.trim();
+    exp.supplier = document.getElementById(`edit-exp-supplier-${id}`).value.trim() || null;
+    const amt = parseFloat(document.getElementById(`edit-exp-amount-${id}`).value);
+    if(!exp.desc || !amt || amt<=0){ showToast('Add a description and amount'); return; }
+    exp.cost = amt;
+    exp.orphanedFrom = exp.jobId===null ? exp.orphanedFrom : null;
+    editingExpenseId = null;
+    await saveState();
+    showToast('Expense updated');
+    render();
+  }
+
   else if(action==='submit-time'){
     const jobId = parseInt(document.getElementById('time-job').value);
     const date = document.getElementById('time-date').value;
@@ -1601,6 +1708,26 @@ async function onAction(e){
   else if(action==='delete-time'){
     state.time = state.time.filter(x=>x.id!==id);
     await saveState(); render(); showToast('Time entry deleted');
+  }
+
+  else if(action==='edit-time'){ editingTimeId = id; render(); }
+
+  else if(action==='cancel-edit-time'){ editingTimeId = null; render(); }
+
+  else if(action==='save-time'){
+    const t = state.time.find(x=>x.id===id);
+    const jobId = parseInt(document.getElementById(`edit-time-job-${id}`).value);
+    const date = document.getElementById(`edit-time-date-${id}`).value;
+    const start = document.getElementById(`edit-time-start-${id}`).value;
+    const finish = document.getElementById(`edit-time-finish-${id}`).value;
+    const desc = document.getElementById(`edit-time-desc-${id}`).value.trim();
+    const hours = calcHours(start, finish);
+    if(!start || !finish || hours<=0){ showToast('Enter a start and finish time'); return; }
+    t.jobId = jobId; t.date = date; t.start = start; t.finish = finish; t.hours = hours; t.desc = desc;
+    editingTimeId = null;
+    await saveState();
+    showToast('Time entry updated');
+    render();
   }
 
   else if(action==='submit-invoice'){
